@@ -1,0 +1,6 @@
+game_id,player,player_id,market,line,over_price,under_price,bookmaker
+G0073,Player 001,P0001,points,15.5,1.88,1.92,example-book
+G0073,Player 001,P0001,rebounds,3.5,1.85,1.95,example-book
+G0073,Player 001,P0001,assists,4.5,1.90,1.90,example-book
+G0073,Player 002,P0002,points,11.5,1.83,1.97,example-book
+G0073,Player 002,P0002,rebounds,5.5,1.91,1.89,example-book

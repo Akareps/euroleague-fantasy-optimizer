@@ -1,0 +1,4 @@
+game_id,home_price,away_price,spread,total,bookmaker
+G0073,1.42,3.05,-6.5,161.5,example-book
+G0074,2.10,1.78,3.0,158.0,example-book
+G0075,1.25,4.40,-10.5,165.5,example-book

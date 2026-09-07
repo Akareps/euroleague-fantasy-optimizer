@@ -1,0 +1,117 @@
+# ---------------------------------------------------------------------------
+# Projection model hyper-parameters. Sensible defaults; tune with
+# `elfantasy backtest` against your own history.
+# ---------------------------------------------------------------------------
+
+minutes:
+  # Half-life, in games, of the exponentially weighted average of minutes.
+  half_life_games: 4.0
+  # Pseudo-games of prior weight pulling a small sample toward the role prior.
+  prior_games: 3.0
+  # Prior minutes by depth-chart rank within a team (1 = first option).
+  rank_prior: [27, 25, 23, 21, 19, 16, 13, 10, 7, 5, 3, 2]
+  # Hard ceiling. A EuroLeague game is 40 minutes.
+  max_minutes: 38.0
+  # Total minutes a team distributes in regulation.
+  team_minutes: 200.0
+
+availability:
+  # P(the player takes the floor) given a reported status.
+  play_prob:
+    active: 0.98
+    probable: 0.92
+    questionable: 0.55
+    doubtful: 0.22
+    out: 0.0
+    unknown: 0.90
+  # A player returning from injury is minutes-restricted for this many games.
+  return_ramp_games: 2
+  return_ramp_factor: 0.78
+
+absence_redistribution:
+  # Fraction of an absent player's baseline minutes that is reabsorbed by the
+  # rest of the roster (the rest evaporates into a shorter rotation).
+  reabsorption: 0.92
+  # How strongly redistribution favours players of the same position.
+  # weight = same_position_bonus if positions match, else cross_position_weight.
+  same_position_bonus: 1.0
+  cross_position_weight: 0.35
+  # Backups deeper in the rotation soak up proportionally more of the gap.
+  backup_rank_exponent: 0.6
+  # Usage (not just minutes) also shifts: share of the absent player's
+  # per-minute production that transfers to the beneficiaries.
+  usage_transfer: 0.45
+
+blowout:
+  # Expected garbage-time minutes as a function of the pre-game spread:
+  #   garbage = clip(slope * (|spread| - threshold), 0, cap)
+  threshold_points: 9.0
+  slope: 0.55
+  cap_minutes: 9.0
+  # Share of garbage minutes taken away from rotation ranks 1-5.
+  starter_loss_share: 0.75
+
+rates:
+  # Empirical-Bayes shrinkage: prior weight expressed in minutes played.
+  prior_minutes: 220.0
+  # Half-life in games for the weighted per-minute rate.
+  half_life_games: 8.0
+  # League-average PIR per minute, used as the shrinkage target when no
+  # positional prior is available.
+  league_pir_per_min: 0.457
+
+context:
+  # Multiplicative home-court effect on production (league level).
+  home_factor: 1.045
+  away_factor: 0.960
+  # Shrinkage weight (in games) for a player's *personal* home/away split
+  # toward the league factor.
+  home_split_prior_games: 25.0
+  # Rest / congestion. Key = days since previous game.
+  rest_factor:
+    1: 0.965
+    2: 0.985
+    3: 1.000
+    4: 1.005
+  # Opponent adjustment strength. 1.0 = apply the full observed opponent
+  # defensive effect; <1 shrinks it toward neutral.
+  opponent_strength: 0.75
+  # Pace adjustment strength on possession-driven counting stats.
+  pace_strength: 0.85
+
+synergy:
+  # With-or-without-you teammate effects. Minimum shared minutes before a
+  # pair effect is trusted at all.
+  min_pair_minutes: 150.0
+  # Shrinkage prior in minutes; a pair needs this much data to reach half
+  # of its raw observed effect.
+  prior_minutes: 400.0
+  # Cap on the total multiplicative synergy adjustment, either direction.
+  max_abs_effect: 0.18
+
+market:
+  # De-vigging method: multiplicative | additive | power | shin
+  devig: shin
+  # Weight given to market-implied projections versus the statistical model
+  # when both exist. Precision-weighted blending is used; this is a floor on
+  # how much the market can dominate.
+  max_market_weight: 0.75
+  # Assumed standard deviation of a player's PIR per minute played, used to
+  # invert prop lines into means.
+  pir_sd_per_sqrt_minute: 1.15
+  # Books rarely price PIR directly. When only PTS/REB/AST props exist we
+  # compose PIR from them plus modelled residual components.
+  compose_pir_from_props: true
+
+optimiser:
+  # Discount applied to each future round when valuing a player over a
+  # multi-round horizon. value = sum_r gamma^r * projection_r
+  horizon_gamma: 0.55
+  horizon_rounds: 3
+  # Mean-variance risk aversion. objective = mu - lambda * var
+  risk_aversion: 0.0
+  # Small bonus per unit of price left unspent, to break ties toward flexibility.
+  bank_bonus: 0.02
+  # Penalty (in projected points) applied per transfer made, on top of any
+  # rule-based cost. Discourages churn for marginal gains.
+  transfer_friction: 0.35

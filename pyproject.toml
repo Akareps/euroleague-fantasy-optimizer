@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "elfantasy"
+version = "0.1.0"
+description = "Projection and optimisation engine for EuroLeague Fantasy: expected-PIR modelling, market de-vigging and budget-constrained squad/transfer optimisation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+keywords = ["euroleague", "fantasy", "basketball", "optimisation", "pir", "sports-betting", "milp"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "scipy>=1.10",
+  "pulp>=2.7",
+  "requests>=2.31",
+  "pyyaml>=6.0",
+  "typer>=0.12",
+  "rich>=13.0",
+  "beautifulsoup4>=4.12",
+  "lxml>=5.0",
+  "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.5",
+  "mypy>=1.10",
+  "types-requests",
+  "types-PyYAML",
+]
+
+[project.scripts]
+elfantasy = "elfantasy.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/Akareps/euroleague-fantasy-optimizer"
+Issues = "https://github.com/Akareps/euroleague-fantasy-optimizer/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/elfantasy"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Typer's whole API is function calls in argument defaults; that is the
+# documented idiom, not an accident.
+"src/elfantasy/cli.py" = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true

@@ -1,0 +1,49 @@
+# Your current fantasy roster.
+#
+# This particular file references the synthetic demo league, so it works
+# out of the box:
+#
+#     elfantasy transfers --sample -s examples/my_squad.yaml
+#
+# For your real squad, replace the entries below. Identify players either by
+# `id` (safest -- get them from `elfantasy price-template`) or by `name`, which
+# is matched leniently: accents, punctuation, and "Surname, Name" versus
+# "Name Surname" are all handled.
+#
+#   bank:  credits you have not spent
+#   paid:  what you paid for the player. Only needed when rules.yaml sets
+#          `pricing.sell_at: purchase`; ignored when selling at current price.
+
+bank: 12.0
+
+players:
+  - id: P0006
+    name: Player 006
+    paid: 2.0
+  - id: P0008
+    name: Player 008
+    paid: 2.0
+  - id: P0017
+    name: Player 017
+    paid: 2.0
+  - id: P0054
+    name: Player 054
+    paid: 2.0
+  - id: P0075
+    name: Player 075
+    paid: 2.0
+  - id: P0059
+    name: Player 059
+    paid: 2.8
+  - id: P0025
+    name: Player 025
+    paid: 3.1
+  - id: P0023
+    name: Player 023
+    paid: 3.5
+  - id: P0041
+    name: Player 041
+    paid: 2.0
+  - id: P0052
+    name: Player 052
+    paid: 2.0

@@ -1,0 +1,37 @@
+# Availability file -- the highest-value data in this project.
+#
+# There is no official EuroLeague injury report, so what you read in a press
+# conference or a club statement an hour before lock is genuinely better
+# information than any feed. Keep this file current; the model will warn you
+# loudly when it is empty rather than quietly assuming everyone is fit.
+#
+# status: one of
+#   out           player will not play                 -> P(play) = 0.00
+#   doubtful      unlikely                             -> P(play) = 0.22
+#   questionable  genuine game-time decision           -> P(play) = 0.55
+#   probable      expected to play                     -> P(play) = 0.92
+#   active        confirmed available                  -> P(play) = 0.98
+# (the exact numbers live in config/model.yaml under availability.play_prob)
+#
+# `player` is matched leniently: accents, punctuation, and "Surname, Name"
+# versus "Name Surname" all work. Add `team` to disambiguate common names, or
+# `player_id` to be certain.
+#
+# Delete these examples and add your own.
+
+- player: "Doe, John"
+  team: MAD
+  status: out
+  note: "left ankle, club statement 12 Jan, out 2-3 weeks"
+
+- player: "Jane Roe"
+  team: BAR
+  status: questionable
+  note: "illness, coach said game-time decision in the presser"
+
+# A player just back from a long absence. `games_since_return` is optional and
+# triggers the minutes-restriction ramp in config/model.yaml.
+- player: "Richard Roe"
+  team: OLY
+  status: probable
+  note: "returned last round, minutes restriction expected"

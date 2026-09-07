@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# EuroLeague Fantasy game rules.
+#
+# IMPORTANT: the official game changes its rules between seasons (budget,
+# squad size, transfer counts, position quotas). Everything here is a *config
+# value*, not a hard-coded assumption -- check the current official rules and
+# edit this file. The optimiser reads it verbatim.
+# ---------------------------------------------------------------------------
+
+game: "EuroLeague Fantasy Challenge"
+season: "E2025"
+
+budget:
+  # Total credits available to build a squad from scratch.
+  total: 100.0
+  # Credits currently unspent ("bank"). Overridden by the CLI / squad file.
+  bank: 0.0
+
+squad:
+  size: 10
+  # Minimum and maximum number of players per position slot.
+  # Positions are G (guard), F (forward), C (centre).
+  positions:
+    G: { min: 3, max: 5 }
+    F: { min: 3, max: 5 }
+    C: { min: 2, max: 3 }
+  # How many players may come from the same club.
+  max_per_club: 2
+  # Which players actually score. "all" = every rostered player scores.
+  # Set to an integer N to score only the top N by projection (a "starting N"
+  # game); the optimiser then maximises expected top-N points instead.
+  scoring_slots: all
+
+transfers:
+  # Free transfers in a normal round.
+  per_round: 4
+  # Points deducted per transfer above `per_round`. 0 means extra transfers
+  # are simply not allowed (the optimiser will hard-cap at `per_round`).
+  extra_cost: 0
+  # Rounds in which the whole squad may be rebuilt from scratch.
+  # Use the CLI flag --full-reset to force this mode for any round.
+  reset_rounds: []
+
+pricing:
+  # How much you get back when selling. "purchase" = what you paid,
+  # "current" = the player's current listed price.
+  sell_at: current
+  # Some fantasy games only refund a fraction of price gains.
+  profit_retention: 1.0
