@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
+import warnings
 
 import pulp
 
@@ -30,7 +31,14 @@ class SolverUnavailableError(RuntimeError):
 
 
 def default_solver(*, time_limit: float | None = None, msg: bool = False) -> pulp.LpSolver:
-    """Return a configured CBC solver."""
+    """Return a configured CBC solver.
+
+    ``PULP_CBC_CMD`` bundles a CBC binary, so today it needs no external
+    install. PuLP has deprecated it in favour of ``COIN_CMD`` and will remove it
+    in 4.0, so we prefer it while it exists and fall back afterwards. The
+    deprecation warning is suppressed because there is nothing a user of this
+    project can act on.
+    """
 
     limit = time_limit
     if limit is None:
@@ -41,7 +49,17 @@ def default_solver(*, time_limit: float | None = None, msg: bool = False) -> pul
     if limit:
         kwargs["timeLimit"] = limit
 
-    solver = pulp.PULP_CBC_CMD(**kwargs)
+    factory = getattr(pulp, "PULP_CBC_CMD", None) or getattr(pulp, "COIN_CMD", None)
+    if factory is None:  # pragma: no cover - no CBC binding at all
+        raise SolverUnavailableError(
+            "PuLP exposes neither PULP_CBC_CMD nor COIN_CMD. Install a CBC "
+            "binding with `pip install 'pulp[cbc]'`."
+        )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        solver = factory(**kwargs)
+
     # Keep CBC's scratch files short and out of the project tree.
     solver.tmpDir = tempfile.gettempdir()
     return solver
