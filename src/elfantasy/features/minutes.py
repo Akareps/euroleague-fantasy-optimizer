@@ -183,15 +183,26 @@ def project_team_minutes(
             p.player_id,
             float(play_prob_table.get(p.status.value, play_prob_table.get("unknown", 0.9))),
         )
+        # A stated minutes estimate replaces the statistical baseline and is
+        # then left alone: no redistribution gains, no blowout shifts, no
+        # trimming. Without this lock, a backup reported at ~13 minutes who
+        # ranks 11th on a deep roster gets cut to near zero by the steps below.
+        baseline = (
+            float(p.minutes_override)
+            if p.minutes_override is not None
+            else depth.baseline.get(p.player_id, 0.0)
+        )
         out[p.player_id] = MinutesProjection(
             player_id=p.player_id,
-            minutes=depth.baseline.get(p.player_id, 0.0),
-            baseline=depth.baseline.get(p.player_id, 0.0),
+            minutes=baseline,
+            baseline=baseline,
             play_prob=float(prob),
         )
+    locked = {p.player_id for p in roster if p.minutes_override is not None}
 
     # --- 1. redistribute the minutes of players who will not play -----------
     available = [pid for pid in ids if out[pid].play_prob > 0.35]
+    beneficiaries = [pid for pid in available if pid not in locked]
     for p in roster:
         pid = p.player_id
         missing_share = 1.0 - out[pid].play_prob
@@ -200,7 +211,7 @@ def project_team_minutes(
         vacated = out[pid].baseline * missing_share * reabsorption
         if vacated <= 0.05:
             continue
-        weights = redistribution_weights(pid, available, depth, model)
+        weights = redistribution_weights(pid, beneficiaries, depth, model)
         for beneficiary, w in weights.items():
             gain = vacated * w
             out[beneficiary].minutes += gain
@@ -229,7 +240,7 @@ def project_team_minutes(
         garbage = garbage_time_minutes(spread, model)
         if garbage > 0.05:
             starter_share = float(model.get("blowout.starter_loss_share"))
-            rotation = sorted(available, key=lambda pid: depth.rank.get(pid, 99))
+            rotation = sorted(beneficiaries, key=lambda pid: depth.rank.get(pid, 99))
             top, deep = rotation[:5], rotation[5:]
             if top and deep:
                 # 5 players * garbage minutes of decided time to reallocate.
@@ -255,7 +266,9 @@ def project_team_minutes(
         mp.minutes = clamp(mp.minutes, 0.0, max_minutes)
 
     # A team can only hand out `team_minutes` in regulation, so if the steps
-    # above have over-allocated, scale everyone back proportionally.
+    # above have over-allocated, take the excess back -- mostly from the back
+    # of the rotation. Coaches shorten the bench, they do not trim their star;
+    # a uniform scale-down shaved ~15% off every starter on a deep roster.
     #
     # Deliberately one-directional. Under-allocation is *not* corrected: it
     # means either that we hold an incomplete roster (common -- feeds miss
@@ -263,11 +276,24 @@ def project_team_minutes(
     # bench. Scaling up in either case would invent minutes, and would also
     # double-count the absence redistribution above, which already reallocates
     # vacated minutes explicitly and intentionally reabsorbs less than 100%.
-    expected_total = sum(out[pid].minutes * out[pid].play_prob for pid in ids)
-    if expected_total > team_minutes * 1.02:
-        scale = clamp(team_minutes / expected_total, 0.70, 1.0)
-        for mp in out.values():
-            mp.minutes = clamp(mp.minutes * scale, 0.0, max_minutes)
+    excess = sum(out[pid].minutes * out[pid].play_prob for pid in ids) - team_minutes
+    if excess > team_minutes * 0.02:
+        trimmable = sorted(
+            (pid for pid in ids if pid not in locked and out[pid].minutes > 0),
+            key=lambda pid: -out[pid].minutes,
+        )
+        # Weight grows with rotation rank; the cut to a player's minutes is
+        # sized so the *expected* minutes removed add up to the excess.
+        weight = {
+            pid: out[pid].minutes * out[pid].play_prob * (0.25 + rank / 6.0)
+            for rank, pid in enumerate(trimmable)
+        }
+        total_w = sum(weight.values())
+        for pid in trimmable:
+            if total_w <= 0 or out[pid].play_prob <= 0:
+                continue
+            cut = excess * weight[pid] / (total_w * out[pid].play_prob)
+            out[pid].minutes = clamp(out[pid].minutes - cut, 0.0, max_minutes)
 
     return out
 

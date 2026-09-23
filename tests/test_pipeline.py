@@ -151,3 +151,33 @@ class TestDataHealth:
         warnings = data_health(empty)
         assert any("prices" in w for w in warnings)
         assert any("odds" in w for w in warnings)
+
+
+class TestMarketBlendVariance:
+    def test_props_move_the_mean_without_shrinking_game_variance(self, settings, dataset):
+        """Blending two estimates of the mean says nothing about one game's swing."""
+
+        import copy
+        import dataclasses
+
+        from elfantasy.config import Section
+
+        fitted = engine.fit(dataset, settings)
+        rnd = dataset.current_round()
+        with_market = engine.project_round(dataset, fitted, settings, rnd)
+
+        raw = copy.deepcopy(settings.model.as_dict())
+        raw["market"] = dict(raw["market"], compose_pir_from_props=False)
+        model_only = engine.project_round(
+            dataset, fitted, dataclasses.replace(settings, model=Section(raw, "model")), rnd
+        )
+
+        checked = 0
+        for pid, p in with_market.items():
+            if p.components.get("market_coverage", 0) <= 0.05 or p.mean_pir <= 1:
+                continue
+            q = model_only[pid]
+            # Dispersion scales with the mean, so compare SD per sqrt(mean).
+            assert p.sd_pir / p.mean_pir**0.5 >= 0.9 * q.sd_pir / q.mean_pir**0.5
+            checked += 1
+        assert checked > 10

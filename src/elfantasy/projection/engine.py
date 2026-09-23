@@ -291,9 +291,16 @@ def project_round(
                     # Market variance shrinks with coverage: a fully priced
                     # line is trusted much more than one assists prop.
                     market_var = model_var * (1.0 / max(coverage, 0.05)) * (1.0 - max_w) / max_w
-                    mean_pir, var = precision_blend(
+                    # The blend weights the two *estimates of the mean*. Its
+                    # variance is how well we know his average, not how much a
+                    # single game swings, so it must not be used as the outcome
+                    # variance -- doing so made players with props look steadier
+                    # than players without. Game-to-game dispersion scales
+                    # roughly with the mean (Poisson-like components).
+                    mean_pir, _ = precision_blend(
                         [model_pir, market_pir], [model_var, max(market_var, 1e-6)]
                     )
+                    var = model_var * max(mean_pir, 0.5) / max(model_pir, 0.5)
                 else:
                     mean_pir, var = model_pir, model_var
                     market_pir = None

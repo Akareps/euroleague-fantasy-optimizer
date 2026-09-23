@@ -190,3 +190,48 @@ class TestBlowout:
 
         assert rout["g1"].minutes < close["g1"].minutes
         assert rout["c3"].minutes > close["c3"].minutes
+
+
+class TestMinuteBudget:
+    """When a roster claims more than 200 minutes, the bench gives them back."""
+
+    def test_stars_keep_their_minutes_on_a_deep_roster(self, roster, model):
+        players, box, _ = roster
+        # Five extra 15-minute players push the team well past 200 minutes.
+        for k in range(5):
+            pid = f"x{k}"
+            players.append(_player(pid, Position.FORWARD))
+            box.extend(_history(pid, "AAA", 15.0))
+        depth = build_depth_chart("AAA", players, box, model)
+        proj = project_team_minutes("AAA", players, depth, model)
+
+        star_cut = 1 - proj["g1"].minutes / proj["g1"].baseline
+        deep_cut = 1 - proj["x4"].minutes / proj["x4"].baseline
+        assert deep_cut > 2 * star_cut
+        assert sum(mp.minutes * mp.play_prob for mp in proj.values()) == pytest.approx(
+            float(model.get("minutes.team_minutes")), rel=0.03
+        )
+
+
+class TestStatedMinutes:
+    def test_an_override_replaces_the_baseline(self, roster, model):
+        players, box, _ = roster
+        for p in players:
+            if p.player_id == "c3":
+                p.minutes_override = 13.0
+        depth = build_depth_chart("AAA", players, box, model)
+        proj = project_team_minutes("AAA", players, depth, model)
+        assert proj["c3"].minutes == pytest.approx(13.0)
+
+    def test_an_override_is_not_moved_by_absences_or_blowouts(self, roster, model):
+        players, box, _ = roster
+        for p in players:
+            if p.player_id == "c3":
+                p.minutes_override = 13.0
+            if p.player_id == "c1":
+                p.status = Availability.OUT
+        depth = build_depth_chart("AAA", players, box, model)
+        proj = project_team_minutes("AAA", players, depth, model, spread=-22.0)
+        assert proj["c3"].minutes == pytest.approx(13.0)
+        # ...while unlocked backups still absorb the starter's minutes.
+        assert proj["c2"].from_absences > 0
