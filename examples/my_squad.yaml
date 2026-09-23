@@ -11,39 +11,43 @@
 # "Name Surname" are all handled.
 #
 #   bank:  credits you have not spent
+#   coach: your head coach, by name or id
 #   paid:  what you paid for the player. Only needed when rules.yaml sets
 #          `pricing.sell_at: purchase`; ignored when selling at current price.
 
 bank: 12.0
 
+# Head coach (name or id). A coach change uses one of the per-round transfers.
+coach: Coach BAR
+
 players:
   - id: P0006
     name: Player 006
-    paid: 2.0
+    paid: 4.0
   - id: P0008
     name: Player 008
-    paid: 2.0
+    paid: 4.0
   - id: P0017
     name: Player 017
-    paid: 2.0
+    paid: 4.0
   - id: P0054
     name: Player 054
-    paid: 2.0
+    paid: 4.0
   - id: P0075
     name: Player 075
-    paid: 2.0
+    paid: 4.0
   - id: P0059
     name: Player 059
-    paid: 2.8
+    paid: 4.3
   - id: P0025
     name: Player 025
-    paid: 3.1
+    paid: 4.5
   - id: P0023
     name: Player 023
-    paid: 3.5
+    paid: 4.9
   - id: P0041
     name: Player 041
-    paid: 2.0
+    paid: 4.0
   - id: P0052
     name: Player 052
-    paid: 2.0
+    paid: 4.0

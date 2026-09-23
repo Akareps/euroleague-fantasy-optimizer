@@ -99,7 +99,7 @@ def _apply_local_sources(
     props_csv: Path | None,
 ) -> None:
     if prices_csv:
-        fantasy.load_prices_csv(prices_csv, ds.players)
+        fantasy.load_prices_csv(prices_csv, ds.players, ds.coaches)
         ds.sources["prices"] = str(prices_csv)
 
     if injuries_yaml:

@@ -322,3 +322,101 @@ def fixtures_table(dataset: Dataset, rounds: list[int], win_probs: dict[str, lis
         mean = sum(probs) / len(probs) if probs else 0.0
         table.add_row(code, *cells, f"{mean * 100:.0f}")
     console.print(table)
+
+
+def lineup_plan(plan, title: str = "Lineup") -> None:
+    """The roster, the pre-Turn lineup, and what to do after the first day."""
+
+    import numpy as np
+
+    sim, ev, lu = plan.sim, plan.evaluation, plan.evaluation.lineup
+    first = ev.first_round
+    bank = sim.budget - ev.cost
+
+    table = Table(title=title, header_style="bold")
+    for col, kw in (
+        ("Role", {}),
+        ("Player", {"overflow": "ellipsis", "max_width": 24}),
+        ("P", {"width": 1}),
+        ("Club", {"width": 4}),
+        ("Price", {"justify": "right"}),
+        ("Day", {}),
+        ("Exp", {"justify": "right"}),
+        ("P(0)", {"justify": "right"}),
+        ("dPrice", {"justify": "right"}),
+        ("In the simulations", {"overflow": "fold"}),
+    ):
+        table.add_column(col, **kw)
+
+    def row(i, role):
+        p = sim.players[i]
+        notes = []
+        if i in ev.promoted:
+            notes.append(f"comes on {ev.promoted[i]:.0%}")
+        share = ev.captained.get(i)
+        if share and i == lu.captain:
+            notes.append(f"keeps the armband {share:.0%}")
+        elif share:
+            notes.append(f"captain {share:.0%}")
+        table.add_row(
+            role,
+            p.name,
+            p.pos,
+            p.club,
+            _fmt(p.price),
+            "later" if sim.late[i] else "first",
+            _fmt(sim.E[i]),
+            f"{sim.p_zero[i]:.0%}",
+            f"{sim.dprice[i]:+.2f}",
+            ", ".join(notes),
+        )
+
+    for i in sorted(lu.starters, key=lambda i: "GFC".index(sim.pos[i])):
+        row(i, "[bold]CAPTAIN[/]" if i == lu.captain else "start")
+    if lu.sixth is not None:
+        row(lu.sixth, "6th")
+    for i in sorted(
+        [i for i in plan.ids if i not in lu.starters and i != lu.sixth],
+        key=lambda i: (not sim.late[i], -sim.E[i]),
+    ):
+        row(i, "bench")
+    console.print(table)
+    if plan.coach is not None:
+        c = sim.coaches[plan.coach]
+        console.print(
+            f"  coach  [bold]{c.name}[/] ({c.club}) {c.price:.1f}  "
+            f"expected {float(np.mean(sim.coach_points[plan.coach])):.1f}"
+        )
+    console.print(
+        f"  cost {ev.cost:.1f}, bank {bank:.1f} | first round {first.mean():.1f} expected "
+        f"(10th-90th pct {np.percentile(first, 10):.0f}-{np.percentile(first, 90):.0f}; "
+        f"same roster without Turn moves {plan.static_first_round:.1f}) | "
+        f"later rounds {ev.future:.1f}, "
+        f"price changes {ev.price_value:+.1f}, bank {ev.bank_value:+.1f}"
+    )
+
+    steps = []
+    late_bench = sorted(plan.late_bench(), key=lambda i: -sim.E[i])
+    if late_bench:
+        steps.append("Before the first day: later-day players stay on the bench.")
+    for j in late_bench:
+        steps.append(
+            f"After the first day: bring on {sim.players[j].name} for the lowest-scoring "
+            f"first-day field player if that player scored under {sim.E[j]:.0f} "
+            f"(happens in {ev.promoted.get(j, 0):.0%} of simulations)."
+        )
+    switches = [(i, s) for i, s in ev.captained.items() if i != lu.captain]
+    for m, share in sorted(switches, key=lambda t: -t[1]):
+        steps.append(
+            f"If {sim.players[lu.captain].name} scored under {sim.E[m]:.0f}, move the captaincy "
+            f"to {sim.players[m].name} -- he must be in the starting five, not the 6th-man "
+            f"spot ({share:.0%} of simulations)."
+        )
+    if steps:
+        console.print(Panel("\n".join(f"- {s}" for s in steps), title="Turn plan", expand=False))
+    if plan.sold or plan.coach_changed:
+        names = {p.player_id: p.name for p in sim.players}
+        out = ", ".join(names.get(pid, pid) for pid in plan.sold) or "-"
+        inn = ", ".join(names.get(pid, pid) for pid in plan.bought) or "-"
+        coach_note = " (+ coach change)" if plan.coach_changed else ""
+        console.print(Panel(f"out: {out}\nin:  {inn}{coach_note}", title="Transfers", expand=False))

@@ -4,8 +4,10 @@ elfantasy demo                      # everything, on synthetic data, no network
 elfantasy sync                      # fetch and cache a snapshot
 elfantasy project --round 12        # ranked projections
 elfantasy explain "Player 042"      # why that number
-elfantasy squad                     # full rebuild (reset round)
-elfantasy transfers -s my_squad.yaml  # standard round
+elfantasy lineup                    # roster + lineup + Turn plan, real game rules
+elfantasy lineup -s my_squad.yaml   # the same, as transfers from your squad
+elfantasy squad                     # full rebuild, squad only (no lineup rules)
+elfantasy transfers -s my_squad.yaml  # transfers, squad only (no lineup rules)
 elfantasy value                     # best points per credit
 elfantasy fixtures                  # schedule difficulty over the horizon
 """
@@ -299,6 +301,91 @@ def explain(
 
 
 @app.command()
+def lineup(
+    squad_file: Path = typer.Option(
+        None, "--squad", "-s", help="Your current squad (YAML); omit to build one from scratch."
+    ),
+    max_transfers: int = typer.Option(
+        None, "--max-transfers", "-k", help="Default: the rules' per-round cap."
+    ),
+    thorough: bool = typer.Option(
+        False, "--thorough", help="Several starting points and paired swaps (minutes, not seconds)."
+    ),
+    no_search: bool = typer.Option(
+        False, "--no-search", help="Static MILP only; skip simulation search."
+    ),
+    sims: int = typer.Option(6000, "--sims", help="Simulated rounds per evaluation."),
+    credit_multiplier: float = typer.Option(
+        1.0,
+        "--credit-value",
+        help="Scale the value of a credit (e.g. 3 if gains compound all season).",
+    ),
+    sample: bool = SampleOpt,
+    snapshot: Path = SnapshotOpt,
+    prices: Path = PricesOpt,
+    injuries: Path = InjuriesOpt,
+    odds_csv: Path = OddsOpt,
+    props_csv: Path = PropsOpt,
+    offline: bool = OfflineOpt,
+    round_no: int = RoundOpt,
+    horizon: int = HorizonOpt,
+    config: Path = ConfigOpt,
+    verbose: bool = VerboseOpt,
+) -> None:
+    """Best roster and lineup under the real game rules, Turn moves included.
+
+    Plans who starts, who waits on the bench for a later game day, who
+    captains, and what to change after the first day. With --squad it plans
+    transfers from your current team instead.
+    """
+
+    from elfantasy.plan import plan_lineup
+    from elfantasy.rules import GameRules
+
+    _setup_logging(verbose)
+    pipe = _build(
+        sample=sample,
+        snapshot=snapshot,
+        prices=prices,
+        injuries=injuries,
+        odds_csv=odds_csv,
+        props_csv=props_csv,
+        offline=offline,
+        round_no=round_no,
+        horizon=horizon,
+        config=config,
+    )
+    report.warnings_panel(pipe.health())
+    rules = GameRules.from_settings(pipe.settings)
+
+    my_squad = None
+    if squad_file is not None:
+        try:
+            my_squad = load_squad_yaml(squad_file, pipe.dataset.players, pipe.dataset.coaches)
+        except (ValueError, FileNotFoundError) as exc:
+            report.console.print(f"[red]{exc}[/]")
+            raise typer.Exit(1) from exc
+
+    try:
+        with report.console.status("simulating rounds..."):
+            plan = plan_lineup(
+                pipe,
+                rules,
+                squad=my_squad,
+                max_transfers=max_transfers,
+                n=sims,
+                search=not no_search,
+                thorough=thorough,
+                credit_multiplier=credit_multiplier,
+                log=lambda m: report.console.print(f"[dim]{m}[/]"),
+            )
+    except InfeasibleError as exc:
+        report.console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1) from exc
+    report.lineup_plan(plan, title=f"Round {pipe.start_round}")
+
+
+@app.command()
 def squad(
     budget: float = typer.Option(None, "--budget", "-b", help="Override the configured budget."),
     risk: float = typer.Option(None, "--risk", help="Mean-variance risk aversion (0 = neutral)."),
@@ -376,7 +463,7 @@ def transfers(
     report.warnings_panel(pipe.health())
 
     try:
-        my_squad = load_squad_yaml(squad_file, pipe.dataset.players)
+        my_squad = load_squad_yaml(squad_file, pipe.dataset.players, pipe.dataset.coaches)
     except (ValueError, FileNotFoundError) as exc:
         report.console.print(f"[red]{exc}[/]")
         raise typer.Exit(1) from exc
