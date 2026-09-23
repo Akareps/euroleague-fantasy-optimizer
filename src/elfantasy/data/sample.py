@@ -97,7 +97,8 @@ def build_sample_dataset(
                 # average lands near 0.42, i.e. ~82 points per team-game.
                 talent[pid] = 0.34 + 0.055 * tier + 0.010 * strength[code]
                 minutes_role[pid] = max(4.0, 31.0 - 2.3 * rank + rng.gauss(0, 2.0))
-                price = round(min(max(2.5 + 11.0 * (talent[pid] - 0.32) / 0.25, 2.0), 14.0), 1)
+                # 4.0-17.0 like the real game, whose price floor is 4.0.
+                price = round(min(max(4.0 + 10.0 * (talent[pid] - 0.32) / 0.25, 4.0), 17.0), 1)
                 ds.players[pid] = Player(
                     player_id=pid,
                     name=f"Player {counter:03d}",

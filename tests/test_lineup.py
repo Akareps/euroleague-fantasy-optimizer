@@ -105,6 +105,20 @@ class TestLineupMilp:
         )
         assert sol.first_round == pytest.approx(expected)
 
+    def test_first_round_excludes_later_rounds(self, rules):
+        """Regression: later-round terms leaked into the first-round score."""
+
+        sol = optimise_lineup(make_players(), make_coaches(), rules, rounds=[1, 2, 3])
+        expected = (
+            sum(p.ev[1] for p in sol.starters)
+            + sol.sixth.ev[1]
+            + sol.captain.ev[1] * (rules.captain_multiplier - 1)
+            + rules.bench_weight * sum(p.ev[1] for p in sol.bench)
+            + sol.coach.ev[1]
+        )
+        assert sol.first_round == pytest.approx(expected)
+        assert sol.objective > sol.first_round
+
     def test_coach_price_comes_out_of_the_same_budget(self, rules):
         players, coaches = make_players(), make_coaches()
         cheap = optimise_lineup(players, coaches, rules, rounds=[1], budget=70.0)

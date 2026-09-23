@@ -167,7 +167,9 @@ def optimise_lineup(
         for i in ids
     )
     first_round += pulp.lpSum(y[k] * ev(c, first) for k, c in enumerate(coaches) if y)
-    objective = first_round
+    # A copy: PuLP expressions are mutable, and `objective += ...` on an alias
+    # would silently add the later-round terms to `first_round` as well.
+    objective = first_round.copy()
     objective += pulp.lpSum(x[i] * w_future * future(pool[i]) for i in ids)
     objective += pulp.lpSum(y[k] * future(c) for k, c in enumerate(coaches) if y)
 

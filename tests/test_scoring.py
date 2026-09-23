@@ -96,6 +96,12 @@ class TestPriceChange:
         assert scoring.price_change(0, 4.5, rules) == pytest.approx(-0.2)
         assert scoring.price_change(-20, 4.3, rules) == pytest.approx(-0.3)
 
+    def test_the_floor_never_lifts_a_price(self, rules):
+        """Regression: a player listed below the floor jumped up to it."""
+
+        assert scoring.price_change(2.0, 2.0, rules) == pytest.approx(0.0)
+        assert scoring.price_change(0.0, 2.0, rules) == pytest.approx(0.0)
+
     def test_vectorised(self, rules):
         out = scoring.price_change(np.array([0.0, 21.0]), np.array([4.0, 12.0]), rules)
         assert out == pytest.approx([0.0, 0.4])

@@ -68,9 +68,12 @@ def price_change(score: ArrayLike, price: ArrayLike, rules: GameRules) -> ArrayL
     above or below his current price, in whole steps, never below the floor.
     """
 
+    price = np.asarray(price, dtype=float)
     steps = np.trunc((np.asarray(score, dtype=float) - price) / rules.price_step_points)
     change = rules.price_step * steps
-    return np.maximum(change, rules.price_floor - np.asarray(price, dtype=float))
+    # The floor only limits losses: a player listed below it (possible in
+    # custom data) must not be lifted up to it.
+    return np.maximum(change, np.minimum(0.0, rules.price_floor - price))
 
 
 def win_prob_to_margin(win_prob: float, sigma: float = 11.5) -> float:
