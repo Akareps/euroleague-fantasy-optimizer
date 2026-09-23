@@ -11,6 +11,11 @@ Endpoints used (all overridable via environment variables):
 * ``{base}/v2/competitions/{comp}/seasons/{season}/games/{n}/stats`` -- box scores
 * ``{base}/v1/results?seasonCode=...``                              -- legacy results
 * ``{feeds}/v2/competitions/{comp}/seasons/{season}/people``        -- rosters
+* ``{base}/v3/competitions/{comp}/statistics/players/traditional``  -- season totals
+
+The feed rate-limits bursts (HTTP 429 with Retry-After of up to five minutes
+after ~60 quick requests). Prefer the aggregated endpoints to per-game ones
+where they carry what you need.
 
 If a shape changes, fix it here. Nothing above this layer needs to know.
 """
@@ -19,6 +24,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -189,6 +195,36 @@ class EuroleagueClient:
         log.info("parsed %d players across %d clubs", len(players), len(teams))
         return teams, players
 
+    # --- season totals -----------------------------------------------------
+    def fetch_season_totals(self, season: str | None = None) -> dict[str, SeasonTotals]:
+        """Every player's season totals, in one request.
+
+        Use the *Accumulated* statistic mode. The PerGame mode applies a hidden
+        games-played qualifier (24+ games in 2025-26) and silently drops anyone
+        who missed a stretch through injury -- exactly the players whose data a
+        fantasy manager needs. One request here also replaces ~400 box-score
+        requests, which matters because the feed rate-limits aggressively.
+        """
+
+        url = f"{self.api_base}/v3/competitions/{self.competition}/statistics/players/traditional"
+        payload = self.http.get_json(
+            url,
+            {
+                "seasonMode": "Single",
+                "seasonCode": season or self.season,
+                "statisticMode": "Accumulated",
+                "limit": 1000,
+            },
+        )
+        rows = payload.get("players", []) if isinstance(payload, dict) else []
+        out = {}
+        for row in rows:
+            totals = parse_season_totals(row)
+            if totals is not None:
+                out[totals.player_id] = totals
+        log.info("parsed season totals for %d players", len(out))
+        return out
+
     # --- box scores --------------------------------------------------------
     def fetch_boxscores(self, games: Iterable[Game]) -> list[BoxScore]:
         out: list[BoxScore] = []
@@ -200,9 +236,13 @@ class EuroleagueClient:
         return out
 
     def fetch_game_boxscore(self, game: Game) -> list[BoxScore]:
+        # `game_id` is the season-qualified identifier ("E2025_123") so that ids
+        # stay unique across seasons, but this endpoint only accepts the bare
+        # game code and answers 400 to the qualified form.
+        code = str(game.game_id).rsplit("_", 1)[-1]
         url = (
             f"{self.api_base}/v2/competitions/{self.competition}"
-            f"/seasons/{self.season}/games/{game.game_id}/stats"
+            f"/seasons/{self.season}/games/{code}/stats"
         )
         payload = self.http.get_json(url)
         if payload is None:
@@ -218,10 +258,27 @@ class EuroleagueClient:
         return lines
 
     def _parse_boxscore(self, row: dict[str, Any], game: Game, team_code: str) -> BoxScore | None:
-        pid = str(_first(row, "playerCode", "player", "code", "personCode", default="")).strip()
+        # The v2 stats endpoint nests each line as
+        #   {"player": {"person": {"code": ...}, "club": {"code": ...}}, "stats": {...}}
+        # with `timePlayed` in *seconds*. Older feeds are flat with minutes as
+        # "MM:SS". Normalise the nested shape to the flat one before parsing.
+        seconds_clock = False
+        if isinstance(row.get("player"), dict) and isinstance(row.get("stats"), dict):
+            player = row["player"]
+            person = player.get("person") or {}
+            club = player.get("club") or {}
+            row = {
+                **row["stats"],
+                "playerCode": person.get("code"),
+                "teamCode": club.get("code"),
+            }
+            team_code = team_code or str(club.get("code") or "")
+            seconds_clock = True
+
+        pid = str(_first(row, "playerCode", "code", "personCode", default="")).strip()
         if not pid:
             return None
-        code = team_code or str(_first(row, "team", "teamCode", default=""))
+        code = team_code or str(_first(row, "teamCode", "team", default=""))
         two_made = _num(_first(row, "fieldGoalsMade2", "twoPointersMade"))
         two_att = _num(_first(row, "fieldGoalsAttempted2", "twoPointersAttempted"))
         three_made = _num(_first(row, "fieldGoalsMade3", "threePointersMade"))
@@ -232,7 +289,11 @@ class EuroleagueClient:
             round=game.round,
             player_id=pid,
             team_code=code,
-            minutes=parse_minutes(_first(row, "timePlayed", "minutes", "min")),
+            minutes=(
+                _num(row.get("timePlayed")) / 60.0
+                if seconds_clock
+                else parse_minutes(_first(row, "timePlayed", "minutes", "min"))
+            ),
             points=_num(_first(row, "points", "pts")),
             rebounds=_num(_first(row, "totalRebounds", "rebounds", "reb")),
             assists=_num(_first(row, "assistances", "assists", "ast")),
@@ -251,6 +312,48 @@ class EuroleagueClient:
         reported = _first(row, "valuation", "pir", "performanceIndexRating")
         bs.pir = _num(reported) if reported is not None else pir_from_boxscore(bs)
         return bs
+
+
+@dataclass
+class SeasonTotals:
+    """A player's season totals from the aggregated statistics feed."""
+
+    player_id: str
+    name: str
+    teams: list[str]  # every club he played for, in order ("PAR;MAD" in the feed)
+    games: float
+    minutes: float
+    pir: float
+    points: float
+
+    @property
+    def minutes_per_game(self) -> float:
+        return self.minutes / self.games if self.games else 0.0
+
+    @property
+    def pir_per_game(self) -> float:
+        return self.pir / self.games if self.games else 0.0
+
+    @property
+    def pir_per_minute(self) -> float:
+        return self.pir / self.minutes if self.minutes else 0.0
+
+
+def parse_season_totals(row: dict[str, Any]) -> SeasonTotals | None:
+    player = row.get("player") or {}
+    code = str(player.get("code") or "").strip()
+    if not code:
+        return None
+    team = (player.get("team") or {}).get("code") or ""
+    return SeasonTotals(
+        player_id=code,
+        name=str(player.get("name") or code),
+        teams=[t for t in str(team).split(";") if t],
+        games=_num(row.get("gamesPlayed")),
+        minutes=_num(row.get("minutesPlayed")),
+        pir=_num(row.get("pir")),
+        points=_num(row.get("pointsScored")),
+    )
 
 
 def _rows(payload: Any) -> list[dict[str, Any]]:

@@ -172,3 +172,93 @@ class TestUtils:
     def test_precision_blend_ignores_useless_estimates(self):
         mean, _ = precision_blend([10.0, 20.0], [1.0, 0.0])
         assert mean == pytest.approx(10.0)
+
+
+class TestLiveBoxScoreShape:
+    """The v2 stats endpoint nests each line and reports time in seconds.
+
+    Captured from a real 2025-26 game. The first version of the adapter assumed
+    flat rows and would have produced a garbage player id and zero minutes.
+    """
+
+    ROW = {
+        "player": {
+            "person": {"code": "003733", "name": "LARKIN, SHANE"},
+            "club": {"code": "IST", "name": "Anadolu Efes Istanbul"},
+        },
+        "stats": {
+            "timePlayed": 2001.0,
+            "valuation": 12.0,
+            "points": 14.0,
+            "fieldGoalsMade2": 2.0,
+            "fieldGoalsAttempted2": 5.0,
+            "fieldGoalsMade3": 3.0,
+            "fieldGoalsAttempted3": 8.0,
+            "freeThrowsMade": 1.0,
+            "freeThrowsAttempted": 1.0,
+            "totalRebounds": 2.0,
+            "assistances": 6.0,
+            "steals": 1.0,
+            "turnovers": 3.0,
+            "blocksFavour": 0.0,
+            "blocksAgainst": 1.0,
+            "foulsCommited": 2.0,
+            "foulsReceived": 3.0,
+            "startFive": True,
+        },
+    }
+
+    def _parse(self):
+        from elfantasy.data.euroleague import EuroleagueClient
+        from elfantasy.models import Game
+
+        client = EuroleagueClient.__new__(EuroleagueClient)
+        game = Game(game_id="1", round=1, home_code="IST", away_code="TEL")
+        return client._parse_boxscore(self.ROW, game, "")
+
+    def test_player_and_club_come_from_the_nested_objects(self):
+        bs = self._parse()
+        assert bs.player_id == "003733"
+        assert bs.team_code == "IST"
+
+    def test_time_played_is_converted_from_seconds(self):
+        assert self._parse().minutes == pytest.approx(2001 / 60)
+
+    def test_reported_valuation_is_used_as_pir(self):
+        assert self._parse().pir == pytest.approx(12.0)
+
+    def test_shooting_splits_are_summed(self):
+        bs = self._parse()
+        assert bs.fg_made == 5 and bs.fg_attempted == 13
+        assert bs.started is True
+
+
+class TestSeasonTotals:
+    """Shape of the aggregated statistics feed (Accumulated mode)."""
+
+    ROW = {
+        "player": {
+            "code": "013369",
+            "name": "JONES, CARLIK",
+            "team": {"code": "PAR;MAD"},
+        },
+        "gamesPlayed": 20.0,
+        "minutesPlayed": 500.0,
+        "pointsScored": 300.0,
+        "pir": 280.0,
+    }
+
+    def test_parses_totals_and_derived_rates(self):
+        from elfantasy.data.euroleague import parse_season_totals
+
+        t = parse_season_totals(self.ROW)
+        assert t.player_id == "013369"
+        assert t.teams == ["PAR", "MAD"]
+        assert t.minutes_per_game == pytest.approx(25.0)
+        assert t.pir_per_game == pytest.approx(14.0)
+        assert t.pir_per_minute == pytest.approx(0.56)
+
+    def test_rows_without_a_player_code_are_skipped(self):
+        from elfantasy.data.euroleague import parse_season_totals
+
+        assert parse_season_totals({"player": {}}) is None
