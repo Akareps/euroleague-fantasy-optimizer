@@ -34,15 +34,30 @@ Anything scraped must respect the source's terms of service. A community-
 maintained YAML in a separate repo would be a legitimate and legally clean
 approach.
 
-## 3. Same-game correlation in the variance
+## 3. Same-game correlation in the squad-only optimisers
 
-Currently the optimiser treats players as independent. They are not: two players
-in one fixture share the pace, the blowout risk and the game script. This
-matters for anyone using `--risk`, and it makes stacking look safer than it is.
+The Turn simulator already draws one margin per fixture, so teammates and
+opponents move together there. The squad-only optimisers (`elfantasy squad`,
+`elfantasy transfers`) still treat players as independent, which makes
+stacking look safer than it is for anyone using `--risk`.
 
-A block-diagonal covariance would keep the mean-variance objective quadratic —
-solvable with a MIQP solver, or approximable by penalising same-game pairs with
-a linear term.
+A block-diagonal covariance would keep their mean-variance objective quadratic
+-- solvable with a MIQP solver, or approximable by penalising same-game pairs
+with a linear term.
+
+## 3b. More than one decision point per round
+
+The Turn policy decides once, after the first game day. A round spread over
+three days has a second decision point (after day two) that is currently
+lumped into "the rest". A two-stage policy is a direct extension of
+`TurnSimulator._weights`; the cost is the combinatorics of plans.
+
+## 3c. Coach prices and a transfer ladder under lineup rules
+
+Coach prices move under a different, unmodelled rule. `elfantasy transfers`
+shows the marginal value of each swap, but only for the squad-only model; the
+same ladder under lineup and Turn rules would make "is the fourth transfer
+worth it?" explicit for `elfantasy lineup` too.
 
 ## 4. Ownership and differential strategy
 

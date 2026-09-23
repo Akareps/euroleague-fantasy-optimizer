@@ -85,10 +85,23 @@ also competing with the coach's decision to empty the bench.
 ### 2.4 Cap
 
 Finally, if the expected total exceeds the 200 minutes a team can actually
-distribute, everyone is scaled back proportionally. The correction is
-**one-directional** — under-allocation is never scaled up, because it means
-either an incomplete roster in the data or a genuinely short bench, and scaling
-up would both invent minutes and double-count §2.2.
+distribute, the excess comes back **mostly from the back of the rotation**.
+Player $k$ at rotation rank $r_k$ gives up a share proportional to
+$m_k \pi_k (0.25 + r_k/6)$. Coaches shorten the bench; they do not trim their
+star. A uniform scale-down shaved ~15% off every starter on a deep roster,
+putting Round 1's Vezenkov at 20 minutes against 27.8 last season.
+
+The correction is **one-directional**. Under-allocation is never scaled up: it
+means either an incomplete roster in the data or a genuinely short bench, and
+scaling up would both invent minutes and double-count §2.2.
+
+### 2.5 Stated minutes
+
+A stated estimate (`Player.minutes_override`, e.g. "~13 minutes" from
+preseason reporting) replaces the baseline and is then left alone: no
+redistribution gains, no blowout shift, no trimming. Without the lock, a backup
+reported at 13 minutes but ranked eleventh on a deep roster was cut to near
+zero by the steps above.
 
 ---
 
@@ -211,6 +224,12 @@ with the market's variance inflated in inverse proportion to **coverage** — wh
 fraction of the player's projected PIR its props actually price. One assists
 prop nudges the projection; a full points/rebounds/assists set dominates it.
 
+The blend's variance, $1/(1/\sigma^2_{\text{mod}} + 1/\sigma^2_{\text{mkt}})$,
+describes how precisely we know the player's **mean**. It is *not* how much a
+single game swings, and must not be used as the outcome variance: doing so
+made every player with props look steadier than players without. The outcome
+variance is the stat-line dispersion of §7, rescaled to the blended mean.
+
 Rounds the market has not opened yet fall back to the Elo/pace ratings, which is
 the whole reason those exist.
 
@@ -229,8 +248,9 @@ $$\text{Var}(\text{PIR}) = \underbrace{\pi \sigma^2}_{\text{playing}} + \underbr
 Finally widened for players whose game-to-game output is erratic, measured by
 the coefficient of variation of their PIR history.
 
-**Known gap:** same-game correlation between players is not modelled. Stacking
-two players from one fixture is riskier than the variance term implies.
+**Same-game correlation** is modelled in the Turn simulator (§11), which draws
+one margin per fixture and moves every player in it together. The squad-only
+optimisers of §9 still assume independence.
 
 ---
 
@@ -287,7 +307,110 @@ checks this on a concrete instance.
 
 ---
 
-## 10. Calibration
+## 10. The game's scoring, and lineups
+
+### 10.1 Scoring
+
+A player's fantasy score is his PIR, plus 10% when his team wins:
+
+$$S_i = \text{PIR}_i \cdot (1 + 0.1 \cdot \mathbb{1}[\text{win}])$$
+
+So $\mathbb{E}[S_i] \approx \mathbb{E}[\text{PIR}_i](1 + 0.1\,p_{\text{win}})$.
+A head coach scores from the final margin $M$ (his team's view): $+10/+20/+25$
+for $M \in [1,10] / [11,20] / [21,\infty)$, and $-5/-10/-20$ for the mirrored
+losses. With $M \sim N(\mu, 11.5)$ the expectation is a sum over six normal
+bands; a margin in $[0, 0.5)$ still counts as a one-point win.
+
+### 10.2 The lineup MILP
+
+Only the starting five (legal formation) and the sixth man score 100%; the
+other four score $w_b = 0.5$; the captain, a starter, scores
+$\kappa = 2\times$. For each player, binaries $s_i$ (starter), $m_i$ (sixth),
+$b_i$ (bench), $c_i$ (captain) with $x_i = s_i + m_i + b_i$ and
+$c_i \le s_i$. A formation binary $f_k$ ties the starters' position counts to
+one of the legal formations. The coach choice $y_k$ comes out of the same budget.
+
+$$\max \sum_i \text{EV}_{i,1}\,(s_i + m_i + (\kappa - 1)c_i + w_b b_i) + \text{EV}^{\text{coach}}_1
+  + \bar w \sum_i x_i \sum_{r>1} \gamma^{r-1} \text{EV}_{i,r}$$
+
+Later rounds enter with the average slot weight
+$\bar w = (6 + (\kappa-1) + 4 w_b)/10 = 0.9$, since the lineup will be
+re-optimised then.
+
+With a current squad the same model solves for transfers:
+
+- **Transfer cap:** buys are the roster variables of players not owned, and the
+  cap counts a coach change.
+- **Budget:** each owned player enters at his sell price on both sides, which
+  is the familiar $\text{purchases} \le \text{bank} + \text{sales}$ written
+  over the roster.
+
+---
+
+## 11. Turns
+
+A round is played over several game days. Between them a player who has not
+played yet may replace one who has, and may take the captaincy. The simulator
+plays the round $N$ times with common random numbers across rosters:
+
+1. **One margin per fixture.** $M_g \sim N(\mu_g, 11.5)$, with $\mu_g$ from the
+   de-vigged moneyline, shared by both clubs.
+2. **Player scores.** With injury availability $\pi_i$ and a coach's-decision
+   DNP probability $q_i = \min(0.4,\, 0.45\,e^{-m_i/6})$, player $i$ plays with
+   probability $\pi_i (1 - q_i)$. When he plays,
+   $\text{PIR}_i = \beta_i\,[1 + \tfrac{1.09}{93.5}(M_g - \mu_g)] + \beta_i\,\sigma^{\text{idio}}_i\,\varepsilon$.
+   This is mean-preserving: $\beta_i$ is scaled by $1/(1-q_i)$.
+3. **The first-Turn decision.** For every reachable plan (each later-Turn bench
+   player either stays or replaces one field slot, keeping the formation
+   legal; captain either unchanged or moved to a later-Turn starter), score
+   first-Turn players at their **realised** points and later-Turn players at
+   their **expectations**, and take the argmax. The realised value then uses
+   everyone's actual draws.
+
+Two consequences, both used by the search:
+
+- **Bench later-day players before day one.** Starting later-Turn player $j$
+  fixes in advance which first-Turn player $k$ sits at weight $w_b$. Benching
+  $j$ lets the policy demote $\arg\min_k S_k$ after seeing the scores, which is
+  never worse.
+- **The captaincy is an option.** The captain's value becomes
+  $\max(S_c, \mathbb{E}[S_m])$ for the best later-Turn starter $m$.
+
+On the 2026-27 Round 1 roster this is worth +8 points over the same players in
+their best fixed lineup (134.3 → 142.5).
+
+The search hill-climbs on the simulated objective with single swaps, then
+paired swaps, which get past budget-locked optima. Finalists are re-scored on
+fresh, larger simulations.
+
+**Limitation:** one decision point. A round over three days is treated as
+"first day" vs "the rest".
+
+---
+
+## 12. Prices and the value of a credit
+
+Prices move after every game on that game alone:
+
+$$\Delta p = 0.1 \cdot \operatorname{trunc}\!\left(\frac{S - p}{2}\right), \qquad p + \Delta p \ge 4.0$$
+
+A 12.0 player scoring 21 moves to 12.4. The floor only limits losses. The
+official formula is undisclosed; this is the rule experienced managers
+observe.
+
+The simulator values $\mathbb{E}[\Delta p]$ at the lineup MILP's **shadow
+price** of a credit (objective at budget $B+1$ minus at $B$). Credits left in
+the bank are worth 35% of that, since they can only be spent from the next
+round.
+
+This is why, at equal projections, a 4.0-credit fringe player beats a
+4.5-credit one: a DNP costs the latter 0.2 credits and the former nothing.
+When the budget does not bind, a credit is worth nothing and price changes
+drop out.
+
+---
+
+## 13. Calibration
 
 Nothing here is fitted on a full EuroLeague history. Priors and dispersion
 values are principled starting points calibrated to league-average team totals,

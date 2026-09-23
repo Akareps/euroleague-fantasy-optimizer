@@ -1,11 +1,15 @@
 # EuroLeague Fantasy Optimizer
 
-Projection and optimisation engine for EuroLeague Fantasy. It estimates each
-player's **expected PIR** for the coming rounds and then solves, under your
-actual credit budget, either
+Projection and optimisation engine for the EuroLeague Fantasy Challenge. It
+estimates each player's **expected fantasy score** for the coming rounds and
+then solves, under the game's real rules and your credit budget, either
 
-- **standard round** — the best *k* transfers (4 by default), or
-- **reset round** — the best complete squad from scratch.
+- **standard round**: the best transfers from your squad (4 per round, a coach
+  change counting as one), or
+- **reset round**: the best complete squad and head coach from scratch.
+
+It then plans how to **play the round**: who starts, who waits on the bench
+for a later game day, who captains, and what to change after the first day.
 
 The point is not to rank players by last week's PIR. It is to work out where the
 market and the crowd are wrong: a 3.5-credit centre whose starter just went down,
@@ -15,6 +19,7 @@ away with.
 ```bash
 pip install -e .
 elfantasy demo          # full pipeline on synthetic data, no network, no keys
+elfantasy lineup --sample   # roster + lineup + Turn plan on the same data
 ```
 
 ---
@@ -182,8 +187,59 @@ even when the leftover credits cannot be used better. CBC solves a realistic
 
 Risk is handled mean-variance: because `x` is binary, `Σ x_i·Var_i` is the squad
 variance under independence, so the objective stays linear. Set `--risk` above 0
-to prefer floor over ceiling. (Same-game correlation is not modelled; see
-[docs/model.md](docs/model.md).)
+to prefer floor over ceiling.
+
+These two optimisers treat all ten roster spots as equal. The game does not,
+which is what the next section is for.
+
+### 8. Lineups, Turns and prices
+
+The real game ([`config/rules.yaml`](config/rules.yaml)):
+
+- **Squad:** 100 credits buy 4 guards, 4 forwards, 2 centres **and a head
+  coach**, with up to 6 players per club.
+- **Scoring slots:** the starting five (in one of the formations 2-2-1, 1-2-2,
+  2-1-2, 1-3-1 or 3-1-1) and a sixth man score 100%. The other four score
+  **50%**. The captain, picked from the starting five, scores **double**.
+- **Player score:** PIR plus **10% when his team wins**.
+- **Coach score:** +10 / +20 / +25 for wins by 1–10 / 11–20 / 21+ points, and
+  −5 / −10 / −20 for losses by the same margins.
+
+**The lineup MILP** ([`optimize/lineup.py`](src/elfantasy/optimize/lineup.py))
+chooses the roster *for* a lineup: roster, starters, sixth man, bench, captain
+and coach in one model. It knows two bench slots return half, so it can afford
+a premium captain. Given your squad, it solves for transfers instead, with
+sales funding purchases and a coach change counting against the cap.
+
+**Turns** ([`optimize/turns.py`](src/elfantasy/optimize/turns.py)). A round
+spans several game days. Between them you may swap a player who has already
+played for one who hasn't, and move the captaincy to someone who hasn't
+played. That makes every later-day player an option:
+
+- **Bench later-day players before day one.** Afterwards they replace
+  whichever day-one player *actually* scored worst. That's never worse than
+  starting them, which fixes in advance who sits.
+- **Captain a day-one starter.** If he flops, move the armband to a later-day
+  starter. The captain's value becomes `max(actual day-one score, later
+  player's expectation)`.
+
+A static MILP can't see either effect, so the simulator plays the round
+thousands of times:
+
+- **Correlated games:** one margin draw per fixture moves both teams' players
+  together, and decides win bonuses and coach points.
+- **Coach's-decision DNPs** for fringe players, on top of injury risk.
+- **The best legal promotion and captain plan** in every simulation, chosen on
+  actual day-one scores and expected later ones.
+
+On the 2026-27 Round 1 team the Turn moves were worth about **+8 points** over
+the best fixed lineup.
+
+**Prices** move after every game, by ±0.1 credit per 2 points above or below
+the player's current price, never below 4.0. The simulator values the expected
+change at the MILP's shadow price of a credit, and values credits left in the
+bank. That's why a 4.0-credit backup can beat a 4.5-credit one with the same
+projection: if either sits out, only the 4.5 loses value.
 
 ---
 
@@ -194,15 +250,29 @@ elfantasy demo                          # synthetic league, no network
 elfantasy sync --prices data/prices.csv --injuries examples/injuries.yaml
 elfantasy project --round 12 --top 30
 elfantasy explain "Player 042"          # every term behind one number
-elfantasy squad --budget 100            # reset round
-elfantasy transfers -s examples/my_squad.yaml -k 4
+elfantasy lineup                        # reset round: roster, lineup, Turn plan
+elfantasy lineup -s examples/my_squad.yaml    # standard round: transfers + plan
+elfantasy lineup --thorough --credit-value 3  # slower search; credits compound
+elfantasy squad --budget 100            # squad only, no lineup rules
+elfantasy transfers -s examples/my_squad.yaml -k 4   # ditto, with the ladder
 elfantasy value                          # best points per credit
 elfantasy fixtures                       # schedule difficulty over the horizon
 ```
 
-`elfantasy explain` is the one to reach for when the output surprises you — it
+`elfantasy lineup` is the main command. It prints the lineup to set before
+day one and what happens to each player in simulation, then the after-day-one
+rule in plain terms: *"bring on X for the lowest-scoring day-one field player
+if that player scored under 16"*, and *"if the captain scored under 17, move
+the armband to Y"*.
+
+`elfantasy explain` is the one to reach for when a number surprises you. It
 prints the minutes build-up, every context multiplier, and the model/market
 blend that produced the number.
+
+For an early-season round with no current-season data, see the worked example
+in [`scripts/round1_2026`](scripts/round1_2026). It builds preseason
+projections from last season's totals, the game's prices and the betting
+lines.
 
 ### The transfer ladder
 
@@ -219,11 +289,16 @@ that matters most:
 elfantasy price-template -o data/prices.csv   # pre-filled with ids and names
 ```
 
-Then keep [`examples/injuries.yaml`](examples/injuries.yaml) current. There is no
-official EuroLeague injury report, so this file — what you read in a press
-conference an hour ago — is genuinely the highest-value data in the pipeline.
-`elfantasy` will warn you loudly when it is empty rather than quietly assuming
-everyone is fit.
+The price CSV also takes **head coaches** (position `HC`) and an optional
+`minutes` column. Use that for a stated estimate from preseason reporting (e.g.
+"~13 minutes"): it replaces the model's baseline and is never trimmed.
+
+Then keep [`examples/injuries.yaml`](examples/injuries.yaml) current. The league
+publishes an injury report article before each round, but there is no injury
+*feed*, and several clubs file late. So this file, holding what you read in
+the official report or a press conference an hour ago, is genuinely the
+highest-value data in the pipeline. `elfantasy` will warn you loudly when it
+is empty rather than quietly assuming everyone is fit.
 
 Odds are optional. Set `ODDS_API_KEY` for [The Odds API](https://the-odds-api.com),
 or paste lines into a CSV (`--odds-csv`, `--props-csv`) from any book.
@@ -234,22 +309,22 @@ or paste lines into a CSV (`--odds-csv`, `--props-csv`) from any book.
 
 Two YAML files, both read verbatim — no rule is hard-coded.
 
-- [`config/rules.yaml`](config/rules.yaml) — budget, squad size, position quotas,
-  club cap, transfers per round, sell-price rules.
+- [`config/rules.yaml`](config/rules.yaml) — budget, roster, formations, bench
+  and captain weights, coach scoring, win bonus, transfers, the price rule.
 - [`config/model.yaml`](config/model.yaml) — every model hyper-parameter, each
   commented with what it does.
 
-> **Check `rules.yaml` against the current official rules before trusting the
-> output.** The defaults (100 credits, 10 players, max 2 per club, 4 transfers)
-> reflect a common configuration, but the official game changes between seasons
-> and this project is not affiliated with EuroLeague Basketball.
+> `rules.yaml` encodes the **2026-27** rules, checked against the official rules
+> pages on 23 Sep 2026. Check it again each season: the game changes, and this
+> project is not affiliated with EuroLeague Basketball.
 
 ---
 
 ## Honest limitations
 
-- **Availability data is the weak link.** No official injury feed exists. The
-  manual YAML provider is first in the trust order for that reason.
+- **Availability data is the weak link.** No official injury feed exists, only
+  per-round report articles, and clubs file late. The manual YAML provider is
+  first in the trust order for that reason.
 - **Public feeds are undocumented** and change shape between seasons. The
   adapters in [`data/euroleague.py`](src/elfantasy/data/euroleague.py) are
   written defensively and skip records they cannot parse; if a fetch goes empty,
@@ -257,8 +332,13 @@ Two YAML files, both read verbatim — no rule is hard-coded.
 - **Priors are seeded, not fitted from a full history.** `POSITION_PRIORS` and
   the dispersion table are reasonable starting values. Re-fit them on your own
   data before treating the absolute numbers as calibrated.
-- **Same-game correlation is ignored** in the variance. Stacking two players from
-  one game is riskier than the optimiser's variance term implies.
+- **Same-game correlation.** The Turn simulator draws one margin per fixture,
+  so teammates and opponents move together. The squad-only optimisers' variance
+  term still assumes independence.
+- **The price rule is a rule of thumb.** The official formula is undisclosed.
+  Coach price changes are not modelled.
+- **One decision point per round.** Turns are treated as "first day" vs "the
+  rest": a round spread over three days loses the second decision.
 - **Synergy needs data.** In a 34-round season most pair effects will be shrunk
   nearly to zero, which is the correct behaviour but means the term rarely moves
   a projection early in the season.
