@@ -95,10 +95,23 @@ class Player:
     status: Availability = Availability.UNKNOWN
     status_note: str | None = None
     games_since_return: int | None = None
+    # A stated minutes estimate (e.g. from preseason reporting). When set, the
+    # minutes model uses it instead of its own baseline and never trims it.
+    minutes_override: float | None = None
 
     @property
     def key(self) -> str:
         return self.player_id
+
+
+@dataclass
+class Coach:
+    """A head coach as the fantasy game prices him."""
+
+    coach_id: str
+    name: str
+    team_code: str
+    price: float = 0.0
 
 
 @dataclass
@@ -216,6 +229,7 @@ class Squad:
     player_ids: list[str]
     bank: float = 0.0
     purchase_prices: dict[str, float] = field(default_factory=dict)
+    coach_id: str | None = None
 
     def __contains__(self, player_id: str) -> bool:
         return player_id in self.player_ids

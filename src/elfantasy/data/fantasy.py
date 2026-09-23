@@ -22,16 +22,24 @@ import yaml
 
 from elfantasy.data.http import HttpClient
 from elfantasy.data.injuries import normalise_name
-from elfantasy.models import Player, Position, Squad
+from elfantasy.models import Coach, Player, Position, Squad
 
 log = logging.getLogger(__name__)
 
 
-def load_prices_csv(path: Path | str, players: dict[str, Player]) -> int:
+def load_prices_csv(
+    path: Path | str,
+    players: dict[str, Player],
+    coaches: dict[str, Coach] | None = None,
+) -> int:
     """Apply prices from a CSV to the player table. Returns the number applied.
 
     Accepted columns: ``player_id`` or ``player`` (name), ``price``, and
-    optionally ``position``, ``ownership`` and ``purchase_price``.
+    optionally ``position``, ``ownership``, ``purchase_price`` and ``minutes``
+    (a stated minutes estimate, see ``Player.minutes_override``).
+
+    Rows whose position is ``HC`` are head coaches; pass ``coaches`` to collect
+    them (keyed by normalised name), with the club taken from ``team``/``club``.
     """
 
     path = Path(path)
@@ -44,6 +52,15 @@ def load_prices_csv(path: Path | str, players: dict[str, Player]) -> int:
 
     with path.open(newline="", encoding="utf-8-sig") as fh:
         for row in csv.DictReader(fh):
+            if (row.get("position") or row.get("pos") or "").strip().upper() == "HC":
+                if coaches is not None:
+                    name = (row.get("player") or row.get("name") or "").strip()
+                    cid = (row.get("coach_id") or "").strip() or normalise_name(name)
+                    price = _f(row.get("price")) or 0.0
+                    team = (row.get("team") or row.get("club") or "").strip()
+                    coaches[cid] = Coach(coach_id=cid, name=name, team_code=team, price=price)
+                    applied += 1
+                continue
             pid = (row.get("player_id") or "").strip()
             if pid not in players:
                 pid = index.get(normalise_name(row.get("player") or row.get("name") or ""), "")
@@ -63,6 +80,9 @@ def load_prices_csv(path: Path | str, players: dict[str, Player]) -> int:
             pos = row.get("position")
             if pos:
                 player.position = Position.parse(pos)
+            minutes = _f(row.get("minutes"))
+            if minutes is not None:
+                player.minutes_override = minutes
             applied += 1
 
     if unmatched:
@@ -71,10 +91,15 @@ def load_prices_csv(path: Path | str, players: dict[str, Player]) -> int:
     return applied
 
 
-def write_price_template(path: Path | str, players: dict[str, Player]) -> Path:
+def write_price_template(
+    path: Path | str,
+    players: dict[str, Player],
+    coaches: dict[str, Coach] | None = None,
+) -> Path:
     """Write a CSV pre-filled with every player, ready for you to add prices.
 
     Far less painful than typing 200 names, and it guarantees the ids match.
+    Coaches, when given, are listed with position ``HC``.
     """
 
     path = Path(path)
@@ -82,9 +107,15 @@ def write_price_template(path: Path | str, players: dict[str, Player]) -> Path:
     rows = sorted(players.values(), key=lambda p: (p.team_code, p.name))
     with path.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["player_id", "player", "team", "position", "price", "ownership"])
+        writer.writerow(
+            ["player_id", "player", "team", "position", "price", "ownership", "minutes"]
+        )
         for p in rows:
-            writer.writerow([p.player_id, p.name, p.team_code, p.position.value, p.price or "", ""])
+            writer.writerow(
+                [p.player_id, p.name, p.team_code, p.position.value, p.price or "", "", ""]
+            )
+        for c in sorted((coaches or {}).values(), key=lambda c: c.team_code):
+            writer.writerow(["", c.name, c.team_code, "HC", c.price or "", "", ""])
     return path
 
 
@@ -137,12 +168,17 @@ class FantasyApiProvider:
         return applied
 
 
-def load_squad_yaml(path: Path | str, players: dict[str, Player]) -> Squad:
+def load_squad_yaml(
+    path: Path | str,
+    players: dict[str, Player],
+    coaches: dict[str, Coach] | None = None,
+) -> Squad:
     """Load your current roster.
 
     Format (see ``examples/my_squad.yaml``)::
 
         bank: 1.5
+        coach: "Saras Jasikevicius"  # optional; name or coach id
         players:
           - id: P012345          # or: name: "Surname, Name"
             paid: 12.4           # optional, only needed if you sell at cost
@@ -175,7 +211,21 @@ def load_squad_yaml(path: Path | str, players: dict[str, Player]) -> Squad:
             + ". Use their player_id (see `elfantasy players`) if the name spelling differs."
         )
 
-    return Squad(player_ids=ids, bank=float(raw.get("bank", 0.0)), purchase_prices=paid)
+    coach_id = None
+    coach_raw = raw.get("coach")
+    if coach_raw and coaches:
+        wanted = str(coach_raw).strip()
+        by_name = {normalise_name(c.name): cid for cid, c in coaches.items()}
+        coach_id = wanted if wanted in coaches else by_name.get(normalise_name(wanted))
+        if coach_id is None:
+            raise ValueError(f"could not resolve the squad's coach {wanted!r}")
+
+    return Squad(
+        player_ids=ids,
+        bank=float(raw.get("bank", 0.0)),
+        purchase_prices=paid,
+        coach_id=coach_id,
+    )
 
 
 def write_squad_yaml(path: Path | str, squad: Squad, players: dict[str, Player]) -> Path:

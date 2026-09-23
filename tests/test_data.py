@@ -262,3 +262,40 @@ class TestSeasonTotals:
         from elfantasy.data.euroleague import parse_season_totals
 
         assert parse_season_totals({"player": {}}) is None
+
+
+class TestPriceFileWithCoaches:
+    def test_coaches_and_stated_minutes(self, tmp_path):
+        from elfantasy.data.fantasy import load_prices_csv, load_squad_yaml
+
+        players = {"p1": Player("p1", "Doe, John", "AAA", Position.GUARD)}
+        coaches = {}
+        csv_path = tmp_path / "prices.csv"
+        csv_path.write_text(
+            "player_id,player,team,position,price,minutes\n"
+            "p1,John Doe,AAA,G,9.5,14\n"
+            ",Some Coach,AAA,HC,7.0,\n",
+            encoding="utf-8",
+        )
+        assert load_prices_csv(csv_path, players, coaches) == 2
+        assert players["p1"].price == 9.5
+        assert players["p1"].minutes_override == 14.0
+        (coach,) = coaches.values()
+        assert (coach.name, coach.team_code, coach.price) == ("Some Coach", "AAA", 7.0)
+
+        squad_path = tmp_path / "squad.yaml"
+        squad_path.write_text(
+            "bank: 1.0\ncoach: Some Coach\nplayers:\n  - id: p1\n", encoding="utf-8"
+        )
+        squad = load_squad_yaml(squad_path, players, coaches)
+        assert squad.coach_id == coach.coach_id
+
+    def test_coach_rows_are_ignored_without_a_coach_table(self, tmp_path):
+        from elfantasy.data.fantasy import load_prices_csv
+
+        players = {"p1": Player("p1", "Doe, John", "AAA", Position.GUARD)}
+        csv_path = tmp_path / "prices.csv"
+        csv_path.write_text(
+            "player,position,price\nSome Coach,HC,7.0\nJohn Doe,G,9.5\n", encoding="utf-8"
+        )
+        assert load_prices_csv(csv_path, players) == 1

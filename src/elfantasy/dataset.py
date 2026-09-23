@@ -17,6 +17,7 @@ from typing import Any
 from elfantasy.models import (
     Availability,
     BoxScore,
+    Coach,
     Game,
     GameOdds,
     Player,
@@ -31,6 +32,7 @@ class Dataset:
     season: str = ""
     teams: dict[str, Team] = field(default_factory=dict)
     players: dict[str, Player] = field(default_factory=dict)
+    coaches: dict[str, Coach] = field(default_factory=dict)
     games: list[Game] = field(default_factory=list)
     boxscores: list[BoxScore] = field(default_factory=list)
     odds: dict[str, GameOdds] = field(default_factory=dict)
@@ -102,6 +104,7 @@ class Dataset:
             "season": self.season,
             "teams": len(self.teams),
             "players": len(self.players),
+            "coaches": len(self.coaches),
             "games": len(self.games),
             "played": sum(1 for g in self.games if g.played),
             "boxscores": len(self.boxscores),
@@ -128,6 +131,7 @@ class Dataset:
                 }
                 for p in self.players.values()
             ],
+            "coaches": [vars(c) for c in self.coaches.values()],
             "games": [{**vars(g), "tipoff": dt(g.tipoff)} for g in self.games],
             "boxscores": [
                 {k: v for k, v in vars(b).items() if not k.startswith("_")} for b in self.boxscores
@@ -170,5 +174,6 @@ class Dataset:
             o["captured_at"] = dt(o.get("captured_at"))
             ds.odds[o["game_id"]] = GameOdds(**o)
         ds.props = [PlayerProp(**p) for p in raw.get("props", [])]
+        ds.coaches = {c["coach_id"]: Coach(**c) for c in raw.get("coaches", [])}
         ds.annotate_home_flags()
         return ds

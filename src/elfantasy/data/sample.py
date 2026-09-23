@@ -22,6 +22,7 @@ from elfantasy.dataset import Dataset
 from elfantasy.models import (
     Availability,
     BoxScore,
+    Coach,
     Game,
     GameOdds,
     Player,
@@ -108,6 +109,14 @@ def build_sample_dataset(
                 )
                 rank += 1
 
+    # --- head coaches: priced by team strength, 5.0-10.0 like the real game --
+    ranked = sorted(codes, key=lambda c: -strength[c])
+    for rank, code in enumerate(ranked):
+        price = round(10.0 - 5.0 * rank / max(len(ranked) - 1, 1), 1)
+        ds.coaches[f"HC_{code}"] = Coach(
+            coach_id=f"HC_{code}", name=f"Coach {code}", team_code=code, price=price
+        )
+
     # --- schedule: a simple rotating pairing --------------------------------
     total_rounds = rounds_played + rounds_future
     start = datetime(2025, 10, 2, 20, 0)
@@ -128,7 +137,12 @@ def build_sample_dataset(
                     round=rnd,
                     home_code=home,
                     away_code=away,
-                    tipoff=start + timedelta(days=7 * (rnd - 1), hours=i),
+                    # First two thirds of the round on day one, the rest the
+                    # next day: two Turns, like a real Thursday/Friday round.
+                    tipoff=start
+                    + timedelta(
+                        days=7 * (rnd - 1) + (1 if i >= 2 * half // 3 else 0), minutes=15 * i
+                    ),
                     played=rnd <= rounds_played,
                 )
             )
