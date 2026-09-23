@@ -397,8 +397,16 @@ def lineup_plan(plan, title: str = "Lineup") -> None:
 
     steps = []
     late_bench = sorted(plan.late_bench(), key=lambda i: -sim.E[i])
-    if late_bench:
-        steps.append("Before the first day: later-day players stay on the bench.")
+    forced = [i for i in (*lu.starters, lu.sixth) if i is not None and sim.late[i]]
+    if late_bench or forced:
+        note = "Before the first day: later-day players stay on the bench"
+        if forced:
+            names = ", ".join(sim.players[i].name for i in forced)
+            note += (
+                f", except {names}: there are not enough first-day players at that "
+                f"position for a legal lineup"
+            )
+        steps.append(note + ".")
     for j in late_bench:
         steps.append(
             f"After the first day: bring on {sim.players[j].name} for the lowest-scoring "
