@@ -1,49 +1,82 @@
 # ---------------------------------------------------------------------------
-# EuroLeague Fantasy game rules.
+# EuroLeague Fantasy Challenge rules, 2026-27 (Classic mode).
 #
-# IMPORTANT: the official game changes its rules between seasons (budget,
-# squad size, transfer counts, position quotas). Everything here is a *config
-# value*, not a hard-coded assumption -- check the current official rules and
-# edit this file. The optimiser reads it verbatim.
+# Sources, checked 23 Sep 2026:
+#   https://fantaking.gitbook.io/euroleague-fantasy-challenge-rules
+#   (Initial team, Managing your team, Players scoring, Coach scoring)
+#
+# The game changes between seasons. Everything here is config, not code: edit
+# this file rather than the optimisers when the rules move.
 # ---------------------------------------------------------------------------
 
 game: "EuroLeague Fantasy Challenge"
-season: "E2025"
+season: "E2026"
 
 budget:
-  # Total credits available to build a squad from scratch.
+  # Credits for the whole squad, head coach included.
   total: 100.0
-  # Credits currently unspent ("bank"). Overridden by the CLI / squad file.
   bank: 0.0
 
 squad:
   size: 10
-  # Minimum and maximum number of players per position slot.
-  # Positions are G (guard), F (forward), C (centre).
+  # Exact position counts: min == max.
   positions:
-    G: { min: 3, max: 5 }
-    F: { min: 3, max: 5 }
-    C: { min: 2, max: 3 }
-  # How many players may come from the same club.
-  max_per_club: 2
-  # Which players actually score. "all" = every rostered player scores.
-  # Set to an integer N to score only the top N by projection (a "starting N"
-  # game); the optimiser then maximises expected top-N points instead.
-  scoring_slots: all
+    G: { min: 4, max: 4 }
+    F: { min: 4, max: 4 }
+    C: { min: 2, max: 2 }
+  max_per_club: 6
+  head_coach: true
+
+lineup:
+  starters: 5
+  # Legal starting fives as (guards, forwards, centres).
+  formations: [[2, 2, 1], [1, 2, 2], [2, 1, 2], [1, 3, 1], [3, 1, 1]]
+  # Starters, the sixth man and the coach score 100%; the rest of the bench
+  # scores `bench_weight`.
+  sixth_man: true
+  bench_weight: 0.5
+  # The captain is picked from the starting five.
+  captain_multiplier: 2.0
+
+turns:
+  # Between Turns (game days inside a round) you may swap field and bench
+  # players and change the captain, "only if the new player chosen has not
+  # yet taken the field". A player who already played can be benched.
+  field_bench_swaps: true
+  captain_switch: true
+
+scoring:
+  # Player score = PIR components + this share of it when his team wins.
+  win_bonus: 0.10
+  # Head coach points by final margin (from the coach's point of view).
+  # Evaluated top to bottom: the first row whose `min_margin` the margin
+  # reaches applies. Overtime games count as 1-10 either way.
+  coach:
+    - { min_margin: 21, points: 25 }
+    - { min_margin: 11, points: 20 }
+    - { min_margin: 1, points: 10 }
+    - { min_margin: -10, points: -5 }
+    - { min_margin: -20, points: -10 }
+    - { min_margin: -999, points: -20 }
 
 transfers:
-  # Free transfers in a normal round.
   per_round: 4
-  # Points deducted per transfer above `per_round`. 0 means extra transfers
-  # are simply not allowed (the optimiser will hard-cap at `per_round`).
+  # A head coach change uses one of the per-round transfers.
+  coach_counts: true
+  # Points deducted per transfer above `per_round`. 0 = not allowed at all.
   extra_cost: 0
-  # Rounds in which the whole squad may be rebuilt from scratch.
-  # Use the CLI flag --full-reset to force this mode for any round.
+  # Rounds after which transfers are unlimited during the regular season.
+  unlimited_after_rounds: [6, 13, 18, 23, 28, 34]
   reset_rounds: []
 
 pricing:
-  # How much you get back when selling. "purchase" = what you paid,
-  # "current" = the player's current listed price.
   sell_at: current
-  # Some fantasy games only refund a fraction of price gains.
   profit_retention: 1.0
+  # Player prices move after every game on that game alone: +/- `step`
+  # credits for every `step_points` fantasy points above/below the current
+  # price, in whole steps (a 12.0 player scoring 21 moves to 12.4). The
+  # official formula is undisclosed; this is the observed rule of thumb.
+  # Coaches follow a different rule and are not modelled.
+  step_points: 2.0
+  step: 0.1
+  floor: 4.0
