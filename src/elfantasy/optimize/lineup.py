@@ -116,6 +116,7 @@ def optimise_lineup(
     friction: float = 0.0,
     max_club: int | None = None,
     min_late_bench: int = 0,
+    min_early: int = 0,
     exclude: set[str] | frozenset[str] = frozenset(),
     force: set[str] | frozenset[str] = frozenset(),
     force_coach: str | None = None,
@@ -200,6 +201,10 @@ def optimise_lineup(
         prob += pulp.lpSum(y[k] for k, c in enumerate(coaches) if c.coach_id == force_coach) == 1
     if min_late_bench:
         prob += pulp.lpSum(b[i] for i in ids if pool[i].late) >= min_late_bench
+    if min_early:
+        # At least this many first-Turn players on the roster: the Turn
+        # option can only replace first-Turn field players.
+        prob += pulp.lpSum(x[i] for i in ids if not pool[i].late) >= min_early
 
     # --- money and transfers --------------------------------------------------
     def cost(item, is_owned):

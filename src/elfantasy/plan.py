@@ -69,13 +69,12 @@ class LineupPlan:
         return [i for i in self.ids if self.sim.late[i] and i not in lu.starters and i != lu.sixth]
 
 
-def turn_of_games(dataset, round_no: int) -> dict[str, bool]:
-    """game_id -> True if the game is played after the round's first day."""
+def turn_of_games(dataset, round_no: int) -> dict[str, int]:
+    """game_id -> Turn index (0 = the round's first game day)."""
 
     games = dataset.games_in_round(round_no)
     days = sorted({g.tipoff.date() for g in games if g.tipoff})
-    first = days[0] if days else None
-    return {g.game_id: bool(first and g.tipoff and g.tipoff.date() > first) for g in games}
+    return {g.game_id: days.index(g.tipoff.date()) if g.tipoff else 0 for g in games}
 
 
 def team_margins(
@@ -102,7 +101,7 @@ def build_inputs(pipe, rules: GameRules, gamma: float = 0.4):
     ds = pipe.dataset
     rounds = sorted(pipe.horizon)
     first = rounds[0]
-    late = turn_of_games(ds, first)
+    turns = turn_of_games(ds, first)
     w_future = future_slot_weight(rules)
     margins = {r: team_margins(pipe.horizon[r], ds) for r in rounds}
 
@@ -117,7 +116,8 @@ def build_inputs(pipe, rules: GameRules, gamma: float = 0.4):
         if player.price <= 0 or pid not in ev:
             continue
         proj = pipe.horizon[first].get(pid)
-        is_late = bool(proj and late.get(proj.game_id, False))
+        turn = turns.get(proj.game_id, 0) if proj else 0
+        is_late = turn > 0
         lineup_players.append(
             LineupPlayer(
                 player_id=pid,
@@ -145,6 +145,7 @@ def build_inputs(pipe, rules: GameRules, gamma: float = 0.4):
                 opponent=proj.opponent or "",
                 price=player.price,
                 late=is_late,
+                turn=turn,
                 points_if_available=fantasy / play if play > 0 else 0.0,
                 play_prob=play,
                 minutes=proj.minutes,

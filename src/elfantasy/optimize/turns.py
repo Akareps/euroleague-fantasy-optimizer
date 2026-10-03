@@ -22,14 +22,18 @@ simulation:
    coach's score;
 2. player scores, including injury risk and coach's-decision DNPs for fringe
    rotation players;
-3. after the first Turn, the best legal combination of promotions and captain
-   changes, chosen on *actual* first-Turn scores and *expected* later ones;
+3. after every Turn but the last, the best legal combination of promotions and
+   captain changes, chosen on *actual* scores so far and *expected* later ones.
+   Each decision waits for its last chance: a Turn-3 bench player is not
+   committed after Turn 1, because after Turn 2 more is known. Later decisions
+   are re-planned on the information then available (rolling horizon);
 4. expected price changes from the game's price rule, and a value for credits
    left unspent.
 
-Limitations: one decision point (after the first Turn), so a round spread over
-three days is treated as "first day" vs "the rest"; and same-team correlation
-beyond the shared game margin is not modelled.
+Limitations: when re-planning, later Turns are valued at their expectation,
+so the option value of decisions still to come is not counted twice over (a
+slight undervaluation for three-Turn rounds); and same-team correlation beyond
+the shared game margin is not modelled.
 """
 
 from __future__ import annotations
@@ -60,6 +64,7 @@ class SimPlayer:
     win_prob: float
     sd_ratio: float = 0.55  # game-to-game SD of his score / its mean
     future_value: float = 0.0  # later rounds, already discounted
+    turn: int | None = None  # 0 = first Turn; None means 1 if ``late`` else 0
 
 
 @dataclass
@@ -138,6 +143,8 @@ class TurnSimulator:
                 self.margin[p.club] = (mu, mu + margin_sd * sign * draws[key])
 
         R = np.zeros((len(players), n))
+        PIR = np.zeros((len(players), n))
+        PLAYED = np.zeros((len(players), n), dtype=bool)
         for i, p in enumerate(players):
             mu, m = self.margin[p.club]
             # Coach's-decision DNPs: likelier the fewer minutes a player
@@ -152,15 +159,22 @@ class TurnSimulator:
             pir = base * team + base * idio * rng.standard_normal(n)
             plays = rng.random(n) < p.play_prob * (1.0 - p_dnp)
             R[i] = np.where(plays, scoring.fantasy_score(pir, m > 0, rules), 0.0)
+            PIR[i] = np.where(plays, pir, 0.0)
+            PLAYED[i] = plays
         self.R = R
         self.E = R.mean(axis=1)
         self.p_zero = (R == 0).mean(axis=1)
-        self.late = np.array([p.late for p in players])
+        self.turn = np.array([p.turn if p.turn is not None else int(p.late) for p in players])
+        self.late = self.turn > 0
         self.pos = [p.pos for p in players]
         self.price = np.array([p.price for p in players])
         self.future = np.array([p.future_value for p in players])
+        basis = PIR if rules.price_basis == "pir" else R
         self.dprice = np.array(
-            [scoring.price_change(R[i], p.price, rules).mean() for i, p in enumerate(players)]
+            [
+                scoring.price_change(basis[i], p.price, rules, played=PLAYED[i]).mean()
+                for i, p in enumerate(players)
+            ]
         )
         self.coach_points = []
         for c in coaches:
@@ -178,11 +192,9 @@ class TurnSimulator:
         )
 
     def initial_lineups(self, ids: list[int], limit: int = 6) -> list[TurnLineup]:
-        """Plausible pre-Turn lineups: first-Turn players in the field first."""
+        """Plausible pre-Turn lineups: earlier-Turn players in the field first."""
 
-        first = sorted([i for i in ids if not self.late[i]], key=lambda i: -self.E[i])
-        later = sorted([i for i in ids if self.late[i]], key=lambda i: -self.E[i])
-        pool = first + later
+        pool = sorted(ids, key=lambda i: (self.turn[i], -self.E[i]))
         k = self.rules.field_slots
 
         def lineups(width):
@@ -194,7 +206,7 @@ class TurnSimulator:
                     starters = tuple(i for i in field_set if i != sixth)
                     if not self.legal(starters):
                         continue
-                    caps = sorted(starters, key=lambda i: (self.late[i], -self.E[i]))[:2]
+                    caps = sorted(starters, key=lambda i: (self.turn[i], -self.E[i]))[:2]
                     rank = sum(pool.index(i) for i in field_set)
                     for c in caps:
                         yield rank, TurnLineup(starters, sixth, c)
@@ -213,54 +225,107 @@ class TurnSimulator:
                 break
         return out
 
-    def _weights(self, ids: list[int], lineup: TurnLineup) -> np.ndarray:
-        """Every legal end-of-round weighting reachable from ``lineup``."""
+    def _plans(self, ids: list[int], lineup: TurnLineup):
+        """Every legal end-of-round lineup reachable from ``lineup``.
+
+        Decision point ``s`` comes after Turn ``levels[s]`` and settles the
+        bench players of Turn ``levels[s + 1]`` (their last chance to come on).
+        A bench player only ever replaces a field player who has already
+        played -- swapping two unplayed players is a blind change the initial
+        lineup already covers -- and the armband only moves to a later Turn.
+
+        Returns the weights (plans x roster), each plan's final captain, the
+        Turn levels, and per decision point an id of the field each plan has
+        committed to by then.
+        """
 
         rules = self.rules
         slot = {i: k for k, i in enumerate(ids)}
-        field_now = list(lineup.starters) + ([lineup.sixth] if lineup.sixth is not None else [])
-        bench_late = (
-            [i for i in ids if i not in field_now and self.late[i]]
-            if rules.field_bench_swaps
-            else []
-        )
-        weights = set()
-        for plan in itertools.product([None, *field_now], repeat=len(bench_late)):
-            used = [t for t in plan if t is not None]
-            if len(used) != len(set(used)):
-                continue
-            starters, sixth = list(lineup.starters), lineup.sixth
-            for j, target in zip(bench_late, plan, strict=True):
-                if target is None:
+        levels = sorted({int(self.turn[i]) for i in ids})
+        on_field = (*lineup.starters, *(() if lineup.sixth is None else (lineup.sixth,)))
+        bench = [i for i in ids if i not in on_field] if rules.field_bench_swaps else []
+        groups = [[j for j in bench if self.turn[j] == t] for t in levels[1:]]
+
+        def stages(s, starters, sixth, snaps):
+            if s == len(groups):
+                yield starters, sixth, snaps
+                return
+            field_now = [*starters, *(() if sixth is None else (sixth,))]
+            targets = [i for i in field_now if self.turn[i] < levels[s + 1]]
+            for plan in itertools.product([None, *targets], repeat=len(groups[s])):
+                used = [t for t in plan if t is not None]
+                if len(used) != len(set(used)):
                     continue
-                if target == sixth:
-                    sixth = j
-                else:
-                    starters[starters.index(target)] = j
-            if not self.legal(starters):
-                continue
-            captains = [c for c in starters if c == lineup.captain]
+                st, sx = list(starters), sixth
+                for j, target in zip(groups[s], plan, strict=True):
+                    if target is None:
+                        continue
+                    if target == sx:
+                        sx = j
+                    else:
+                        st[st.index(target)] = j
+                if self.legal(st):
+                    yield from stages(s + 1, st, sx, (*snaps, (frozenset(st), sx)))
+
+        plans: dict[tuple, tuple[float, ...]] = {}
+        orig = lineup.captain
+        for starters, sixth, snaps in stages(0, list(lineup.starters), lineup.sixth, ()):
+            captains = [orig] if orig in starters else []
             if rules.captain_switch:
-                captains += [c for c in starters if self.late[c] and c != lineup.captain]
-            final_field = set(starters) | ({sixth} if sixth is not None else set())
+                captains += [c for c in starters if self.turn[c] > self.turn[orig]]
+            final_field = [*starters, *(() if sixth is None else (sixth,))]
             for c in captains:
                 w = np.full(len(ids), rules.bench_weight)
                 for i in final_field:
                     w[slot[i]] = 1.0
                 w[slot[c]] += rules.captain_multiplier - 1.0
-                weights.add(tuple(w))
-        return np.array(sorted(weights))
+                plans.setdefault((snaps, c), tuple(w))
+        keys = list(plans)
+        W = np.array([plans[k] for k in keys])
+        cap = np.array([c for _, c in keys])
+        snap_ids = []
+        for s in range(len(groups)):
+            table: dict = {}
+            snap_ids.append(np.array([table.setdefault(snaps[s], len(table)) for snaps, _ in keys]))
+        return W, cap, levels, snap_ids
 
     def play_round(self, ids: list[int], lineup: TurnLineup):
-        """Realised player points per simulation under the optimal policy."""
+        """Realised player points per simulation under the Turn-by-Turn policy.
 
-        W = self._weights(ids, lineup)
+        At each decision point: actual scores for players who have played,
+        expectations for those who have not, best plan among those still
+        reachable from what was committed earlier; only the moves due now are
+        committed.
+        """
+
+        W, cap, levels, snap_ids = self._plans(ids, lineup)
         R = self.R[ids]
-        # After the first Turn: actual scores for players who have played,
-        # expectations for those who have not.
-        decide = np.where(self.late[ids][:, None], self.E[ids][:, None], R)
-        choice = np.argmax(W @ decide, axis=0)
-        realised = (W @ R)[choice, np.arange(self.n)]
+        E = self.E[ids][:, None]
+        turn = self.turn[ids]
+        cap_turn = self.turn[cap]
+        n = self.n
+        choice = np.zeros(n, dtype=int)
+        committed = np.zeros(n, dtype=np.int64)  # field id after the last decision
+        holder = np.full(n, lineup.captain, dtype=np.int64)  # armband for the next Turn
+        for s, t_next in enumerate(levels[1:]):
+            V = W @ np.where((turn <= levels[s])[:, None], R, E)
+            state = committed * len(self.players) + holder
+            uniq, inv = np.unique(state, return_inverse=True)
+            inv = inv.reshape(-1)
+            for g, key in enumerate(uniq):
+                f_id, h = divmod(int(key), len(self.players))
+                ok = (cap == h) | (cap_turn >= t_next)
+                if s > 0:
+                    ok &= snap_ids[s - 1] == f_id
+                cand = np.flatnonzero(ok)
+                if len(uniq) == 1 and len(cand) == len(W):
+                    choice = np.argmax(V, axis=0)
+                    break
+                sims = np.flatnonzero(inv == g)
+                choice[sims] = cand[np.argmax(V[np.ix_(cand, sims)], axis=0)]
+            committed = snap_ids[s][choice]
+            holder = np.where(cap_turn[choice] == t_next, cap[choice], holder)
+        realised = (W @ R)[choice, np.arange(n)]
         return realised, W, choice
 
     # -------------------------------------------------------------- evaluation
@@ -335,6 +400,8 @@ def local_search(
     max_transfers: int | None = None,
     max_passes: int = 12,
     min_gain: float = 0.05,
+    protect: set[int] | frozenset[int] = frozenset(),
+    min_early: int = 0,
     log: Callable[[str], None] | None = None,
 ) -> tuple[list[int], int | None, float]:
     """Hill-climb on the simulated objective with single and paired swaps.
@@ -343,6 +410,9 @@ def local_search(
     at most ``max_transfers`` changes, counting a coach change if the rules say
     so. Pair moves run only once single swaps stop improving; they get past
     budget-locked optima where an upgrade needs a simultaneous downgrade.
+    ``protect`` holds player indices the search may not remove (players you
+    insist on keeping); they must already be in ``ids``. ``min_early`` keeps at
+    least that many first-Turn players on the roster.
     """
 
     ids = list(ids)
@@ -350,6 +420,8 @@ def local_search(
 
     def feasible(new_ids, new_coach):
         if sim.cost(new_ids, new_coach) > sim.budget + 1e-9:
+            return False
+        if min_early and sum(1 for i in new_ids if not sim.late[i]) < min_early:
             return False
         clubs = [sim.players[i].club for i in new_ids]
         if max(clubs.count(c) for c in set(clubs)) > max_club:
@@ -374,6 +446,8 @@ def local_search(
     for step in range(max_passes):
         best: tuple[float, tuple] = (cur, ())
         for slot, i in enumerate(ids):
+            if i in protect:
+                continue
             for q in candidates[sim.pos[i]]:
                 if q in ids:
                     continue
@@ -385,7 +459,8 @@ def local_search(
             if k != coach and feasible(ids, k) and (v := score(ids, k)) > best[0] + min_gain:
                 best = (v, ("coach", k))
         if not best[1] and pair_candidates:
-            for (s1, i1), (s2, i2) in itertools.combinations(list(enumerate(ids)), 2):
+            open_slots = [(k, i) for k, i in enumerate(ids) if i not in protect]
+            for (s1, i1), (s2, i2) in itertools.combinations(open_slots, 2):
                 for q1 in pair_candidates[sim.pos[i1]]:
                     if q1 in ids:
                         continue

@@ -325,7 +325,7 @@ def fixtures_table(dataset: Dataset, rounds: list[int], win_probs: dict[str, lis
 
 
 def lineup_plan(plan, title: str = "Lineup") -> None:
-    """The roster, the pre-Turn lineup, and what to do after the first day."""
+    """The roster, the pre-Turn lineup, and what to do between game days."""
 
     import numpy as np
 
@@ -364,7 +364,7 @@ def lineup_plan(plan, title: str = "Lineup") -> None:
             p.pos,
             p.club,
             _fmt(p.price),
-            "later" if sim.late[i] else "first",
+            f"T{sim.turn[i] + 1}",
             _fmt(sim.E[i]),
             f"{sim.p_zero[i]:.0%}",
             f"{sim.dprice[i]:+.2f}",
@@ -377,7 +377,7 @@ def lineup_plan(plan, title: str = "Lineup") -> None:
         row(lu.sixth, "6th")
     for i in sorted(
         [i for i in plan.ids if i not in lu.starters and i != lu.sixth],
-        key=lambda i: (not sim.late[i], -sim.E[i]),
+        key=lambda i: (-sim.turn[i], -sim.E[i]),
     ):
         row(i, "bench")
     console.print(table)
@@ -397,21 +397,22 @@ def lineup_plan(plan, title: str = "Lineup") -> None:
 
     steps = []
     late_bench = sorted(plan.late_bench(), key=lambda i: -sim.E[i])
-    forced = [i for i in (*lu.starters, lu.sixth) if i is not None and sim.late[i]]
+    last = max(sim.turn[i] for i in plan.ids)
+    forced = [i for i in (*lu.starters, lu.sixth) if i is not None and 0 < sim.turn[i] == last]
     if late_bench or forced:
-        note = "Before the first day: later-day players stay on the bench"
+        note = "Before Turn 1: later-day players wait on the bench"
         if forced:
             names = ", ".join(sim.players[i].name for i in forced)
             note += (
-                f", except {names}: there are not enough first-day players at that "
-                f"position for a legal lineup"
+                f", except {names}: they play on the last day but start anyway (too few "
+                f"earlier-day players at that position), so nobody can come on for them"
             )
         steps.append(note + ".")
-    for j in late_bench:
+    for j in sorted(late_bench, key=lambda j: (sim.turn[j], -sim.E[j])):
         steps.append(
-            f"After the first day: bring on {sim.players[j].name} for the lowest-scoring "
-            f"first-day field player if that player scored under {sim.E[j]:.0f} "
-            f"(happens in {ev.promoted.get(j, 0):.0%} of simulations)."
+            f"Before Turn {sim.turn[j] + 1}: bring on {sim.players[j].name} for the lowest-"
+            f"scoring field player who has already played, if that player scored under "
+            f"{sim.E[j]:.0f} (happens in {ev.promoted.get(j, 0):.0%} of simulations)."
         )
     switches = [(i, s) for i, s in ev.captained.items() if i != lu.captain]
     for m, share in sorted(switches, key=lambda t: -t[1]):

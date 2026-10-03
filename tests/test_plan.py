@@ -24,8 +24,9 @@ def scratch_plan(pipeline, rules):
 
 class TestInputs:
     def test_rounds_split_into_turns(self, pipeline):
-        late = turn_of_games(pipeline.dataset, pipeline.start_round)
-        assert any(late.values()) and not all(late.values())
+        turns = turn_of_games(pipeline.dataset, pipeline.start_round)
+        assert min(turns.values()) == 0 < max(turns.values())
+        assert sorted(set(turns.values())) == list(range(max(turns.values()) + 1))
 
     def test_fantasy_points_include_the_win_bonus(self, pipeline, rules):
         _, lp, _, _, _ = build_inputs(pipeline, rules)

@@ -331,3 +331,92 @@ class TestSearch:
         )
         moves = len(set(new_ids) - set(ids)) + (1 if new_coach != coach else 0)
         assert moves <= 1
+
+
+def test_search_never_removes_a_protected_player(sim, rules):
+    ids, coach = milp_roster(sim, rules)
+    keep = {ids[0], ids[3]}
+    new_ids, _, _ = local_search(
+        sim,
+        ids,
+        coach,
+        candidate_pool(sim, per_pos=6),
+        protect=keep,
+        max_passes=3,
+        pair_candidates=candidate_pool(sim, per_pos=4, by_value=2),
+    )
+    assert keep <= set(new_ids)
+
+
+def test_min_early_keeps_enough_first_turn_players(sim, rules):
+    lp = [
+        LineupPlayer(p.player_id, p.name, p.pos, p.club, p.price, {1: sim.E[i]}, p.late)
+        for i, p in enumerate(sim.players)
+    ]
+    sol = optimise_lineup(lp, make_coaches(), rules, rounds=[1], min_early=7)
+    assert sum(1 for p in sol.roster if not p.late) >= 7
+    ids = [sim.index[p.player_id] for p in sol.roster]
+    new_ids, _, _ = local_search(
+        sim,
+        ids,
+        sim.coach_index[sol.coach.coach_id],
+        candidate_pool(sim, per_pos=6),
+        min_early=7,
+        max_passes=3,
+    )
+    assert sum(1 for i in new_ids if not sim.late[i]) >= 7
+
+
+# ------------------------------------------------------------ three Turns
+def three_turn_players() -> list[SimPlayer]:
+    turn = {"A": 0, "B": 0, "C": 1, "D": 1, "E": 2, "F": 2}
+    return [dataclasses.replace(p, turn=turn[p.club]) for p in sim_players()]
+
+
+def staggered_roster(sim) -> list[int]:
+    """Field candidates from Turns 1-2, bench from Turn 3."""
+
+    def best(pos, turns, k):
+        idx = [i for i, p in enumerate(sim.players) if p.pos == pos and sim.turn[i] in turns]
+        return sorted(idx, key=lambda i: -sim.E[i])[:k]
+
+    return (best("G", {0}, 1) + best("G", {1}, 1) + best("F", {0}, 1) + best("F", {1}, 1)
+            + best("C", {0}, 1) + best("C", {1}, 1) + best("G", {2}, 2) + best("F", {2}, 2))  # fmt: skip
+
+
+class TestThreeTurns:
+    def test_a_later_bench_player_can_replace_a_second_turn_flop(self, rules):
+        sim = TurnSimulator(three_turn_players(), sim_coaches(), rules, n=3000, seed=1)
+        ids = staggered_roster(sim)
+        lineup = sim.evaluate(ids, None).lineup
+        _, W, choice = sim.play_round(ids, lineup)
+        final = W[choice]
+        field = [*lineup.starters, lineup.sixth]
+        for t in (0, 1):
+            benched = [
+                (final[:, k] == rules.bench_weight).mean()
+                for k, i in enumerate(ids)
+                if i in field and sim.turn[i] == t
+            ]
+            assert max(benched) > 0.02, f"no Turn-{t + 1} field player is ever replaced"
+
+    def test_knowing_the_second_turn_first_adds_value(self, rules):
+        """Splitting the later players over two Turns gives a decision point
+        between them, which can only help."""
+
+        three = TurnSimulator(three_turn_players(), sim_coaches(), rules, n=3000, seed=1)
+        merged = [dataclasses.replace(p, turn=min(p.turn, 1)) for p in three_turn_players()]
+        two = TurnSimulator(merged, sim_coaches(), rules, n=3000, seed=1)
+        ids = staggered_roster(three)
+        assert (
+            three.evaluate(ids, None).first_round.mean()
+            > two.evaluate(ids, None).first_round.mean()
+        )
+
+    def test_one_turn_means_no_moves(self, rules):
+        flat = [dataclasses.replace(p, turn=0) for p in sim_players()]
+        sim = TurnSimulator(flat, sim_coaches(), rules, n=500, seed=1)
+        ids = staggered_roster(TurnSimulator(three_turn_players(), sim_coaches(), rules, n=50))
+        lineup = sim.initial_lineups(ids)[0]
+        W, *_ = sim._plans(ids, lineup)
+        assert len(W) == 1

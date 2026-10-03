@@ -9,7 +9,7 @@ then solves, under the game's real rules and your credit budget, either
 - **reset round**: the best complete squad and head coach from scratch.
 
 It then plans how to **play the round**: who starts, who waits on the bench
-for a later game day, who captains, and what to change after the first day.
+for a later game day, who captains, and what to change between game days.
 
 The point is not to rank players by last week's PIR. It is to work out where the
 market and the crowd are wrong: a 3.5-credit centre whose starter just went down,
@@ -337,8 +337,9 @@ Two YAML files, both read verbatim — no rule is hard-coded.
   term still assumes independence.
 - **The price rule is a rule of thumb.** The official formula is undisclosed.
   Coach price changes are not modelled.
-- **One decision point per round.** Turns are treated as "first day" vs "the
-  rest": a round spread over three days loses the second decision.
+- **Re-planning values later Turns at their expectation.** In a three-day
+  round the decision after day 1 does not count the option value of the
+  decision after day 2, so such rounds are slightly undervalued.
 - **Synergy needs data.** In a 34-round season most pair effects will be shrunk
   nearly to zero, which is the correct behaviour but means the term rarely moves
   a projection early in the season.

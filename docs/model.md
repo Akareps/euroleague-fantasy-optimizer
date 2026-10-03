@@ -383,8 +383,18 @@ The search hill-climbs on the simulated objective with single swaps, then
 paired swaps, which get past budget-locked optima. Finalists are re-scored on
 fresh, larger simulations.
 
-**Limitation:** one decision point. A round over three days is treated as
-"first day" vs "the rest".
+**Several game days.** A round over three days has two decision points. At
+each one the policy uses actual scores for players who have played and
+expectations for the rest, picks the best plan still reachable from what was
+committed earlier, and commits only the moves that cannot wait: a Friday bench
+player is not committed after Wednesday, because after Thursday more is known.
+A bench player only replaces a field player who has already played, and the
+armband only moves to a later day. On two-day rounds this is exactly the
+single-decision policy.
+
+**Limitation:** when re-planning, later days are valued at their expectation,
+so the option value of the decisions still to come is not counted (a slight
+undervaluation of three-day rounds).
 
 ---
 
