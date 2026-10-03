@@ -1,7 +1,11 @@
-"""Solver selection and a couple of platform work-arounds.
+"""Solver selection, PuLP 3/4 compatibility and a couple of platform work-arounds.
 
-PuLP ships CBC, so there is nothing to install. Two things still go wrong in
-practice and both produce baffling errors, so they are handled here once:
+CBC comes with the install (bundled in PuLP 3, the ``pulp[cbc]`` extra in
+PuLP 4), so there is nothing else to set up. PuLP 4 moved variable creation
+onto the problem and returns solve statistics instead of setting a status;
+:func:`binary` and :func:`solve` hide both differences. Two things still go
+wrong in practice and both produce baffling errors, so they are handled here
+once:
 
 * **Windows path limits.** CBC is invoked as a subprocess, and both its own
   executable path and the temporary model files it writes count against the
@@ -33,9 +37,8 @@ class SolverUnavailableError(RuntimeError):
 def default_solver(*, time_limit: float | None = None, msg: bool = False) -> pulp.LpSolver:
     """Return a configured CBC solver.
 
-    ``PULP_CBC_CMD`` bundles a CBC binary, so today it needs no external
-    install. PuLP has deprecated it in favour of ``COIN_CMD`` and will remove it
-    in 4.0, so we prefer it while it exists and fall back afterwards. The
+    PuLP 3's ``PULP_CBC_CMD`` bundles a CBC binary. PuLP 4 removed it; there
+    ``COIN_CMD`` finds the binary that the ``pulp[cbc]`` extra installs. The
     deprecation warning is suppressed because there is nothing a user of this
     project can act on.
     """
@@ -65,6 +68,31 @@ def default_solver(*, time_limit: float | None = None, msg: bool = False) -> pul
     return solver
 
 
+def binary(problem: pulp.LpProblem, name: str) -> pulp.LpVariable:
+    """A 0/1 variable belonging to ``problem`` (PuLP 4 creates variables on the
+    problem; older PuLP has no ``add_variable``)."""
+
+    add = getattr(problem, "add_variable", None)
+    if add is not None:
+        return add(name, cat="Binary")
+    return pulp.LpVariable(name, cat="Binary")  # pragma: no cover - PuLP < 3.3
+
+
+# PuLP 4 status names -> the PuLP 3 strings the optimisers check. PuLP 3 reports
+# a CBC run stopped by a limit with a solution in hand as "Optimal"; keep that.
+_LIMITS = {"TimeLimit", "NodeLimit", "GapLimit", "IterationLimit", "SolutionLimit", "Stopped"}
+
+
+def _status_name(result, problem: pulp.LpProblem) -> str:
+    stats = getattr(result, "status", None)
+    if stats is None:  # PuLP 3: solve() returns an int and sets problem.status
+        return pulp.LpStatus[problem.status]
+    name = getattr(stats, "name", str(stats))
+    if name in _LIMITS and getattr(result, "has_solution", False):
+        return "Optimal"
+    return "Not Solved" if name == "NotSolved" else name
+
+
 def solve(problem: pulp.LpProblem, solver: pulp.LpSolver | None = None) -> str:
     """Solve, converting environment failures into a message that helps.
 
@@ -74,7 +102,7 @@ def solve(problem: pulp.LpProblem, solver: pulp.LpSolver | None = None) -> str:
 
     solver = solver or default_solver()
     try:
-        problem.solve(solver)
+        result = problem.solve(solver)
     except (FileNotFoundError, OSError) as exc:
         winerror = getattr(exc, "winerror", None)
         if winerror == 206 or "too long" in str(exc).lower():
@@ -94,4 +122,4 @@ def solve(problem: pulp.LpProblem, solver: pulp.LpSolver | None = None) -> str:
             f"(e.g. `pip install pulp --force-reinstall`) or pass your own via the "
             f"`solver=` argument."
         ) from exc
-    return pulp.LpStatus[problem.status]
+    return _status_name(result, problem)

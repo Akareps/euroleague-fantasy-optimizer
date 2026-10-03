@@ -30,7 +30,7 @@ import pulp
 
 from elfantasy.config import Settings
 from elfantasy.models import Squad
-from elfantasy.optimize.solver import solve
+from elfantasy.optimize.solver import binary, solve
 from elfantasy.optimize.squad import Candidate, InfeasibleError, _add_common_constraints
 
 
@@ -127,15 +127,16 @@ def optimise_transfers(
     size = len(squad.player_ids)
 
     prob = pulp.LpProblem("elfantasy_transfers", pulp.LpMaximize)
-    x = {pid: pulp.LpVariable(f"x_{pid}", cat=pulp.LpBinary) for pid in pool}
-    buy = {pid: pulp.LpVariable(f"b_{pid}", cat=pulp.LpBinary) for pid in pool if pid not in owned}
-    sell = {pid: pulp.LpVariable(f"s_{pid}", cat=pulp.LpBinary) for pid in owned}
+    x = {pid: binary(prob, f"x_{pid}") for pid in pool}
+    buy = {pid: binary(prob, f"b_{pid}") for pid in pool if pid not in owned}
+    sell = {pid: binary(prob, f"s_{pid}") for pid in owned}
 
     for pid in pool:
         if pid in owned:
             prob += x[pid] == 1 - sell[pid], f"link_owned_{pid}"
         else:
-            prob += x[pid] == buy[pid], f"link_new_{pid}"
+            # Written as a difference: PuLP 4 turns `var == var` into a Python bool.
+            prob += x[pid] - buy[pid] == 0, f"link_new_{pid}"
 
     n_in = pulp.lpSum(buy.values())
     n_out = pulp.lpSum(sell.values())

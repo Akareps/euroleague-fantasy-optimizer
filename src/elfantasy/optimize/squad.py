@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 import pulp
 
 from elfantasy.config import Settings
-from elfantasy.optimize.solver import solve
+from elfantasy.optimize.solver import binary, solve
 
 
 @dataclass
@@ -140,7 +140,7 @@ def optimise_squad(
     bank_bonus = float(settings.model.get("optimiser.bank_bonus"))
 
     prob = pulp.LpProblem("elfantasy_squad", pulp.LpMaximize)
-    x = {pid: pulp.LpVariable(f"x_{pid}", cat=pulp.LpBinary) for pid in pool}
+    x = {pid: binary(prob, f"x_{pid}") for pid in pool}
 
     spend = pulp.lpSum(x[pid] * pool[pid].price for pid in pool)
     # Mean-variance objective. Because x is binary, sum(x_i * var_i) is the

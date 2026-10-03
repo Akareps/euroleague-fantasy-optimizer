@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 
 import pulp
 
-from elfantasy.optimize.solver import solve
+from elfantasy.optimize.solver import binary, solve
 from elfantasy.optimize.squad import InfeasibleError
 from elfantasy.rules import GameRules
 
@@ -139,17 +139,13 @@ def optimise_lineup(
     w_future = future_slot_weight(rules)
 
     prob = pulp.LpProblem("elfantasy_lineup", pulp.LpMaximize)
-    x = {i: pulp.LpVariable(f"x{i}", cat="Binary") for i in ids}
-    s = {i: pulp.LpVariable(f"s{i}", cat="Binary") for i in ids}
-    six = {i: pulp.LpVariable(f"m{i}", cat="Binary") for i in ids} if rules.sixth_man else {}
-    cap = {i: pulp.LpVariable(f"c{i}", cat="Binary") for i in ids}
-    b = {i: pulp.LpVariable(f"b{i}", cat="Binary") for i in ids}
-    y = (
-        {k: pulp.LpVariable(f"y{k}", cat="Binary") for k in range(len(coaches))}
-        if use_coach
-        else {}
-    )
-    f = {j: pulp.LpVariable(f"f{j}", cat="Binary") for j in range(len(rules.formations))}
+    x = {i: binary(prob, f"x{i}") for i in ids}
+    s = {i: binary(prob, f"s{i}") for i in ids}
+    six = {i: binary(prob, f"m{i}") for i in ids} if rules.sixth_man else {}
+    cap = {i: binary(prob, f"c{i}") for i in ids}
+    b = {i: binary(prob, f"b{i}") for i in ids}
+    y = {k: binary(prob, f"y{k}") for k in range(len(coaches))} if use_coach else {}
+    f = {j: binary(prob, f"f{j}") for j in range(len(rules.formations))}
 
     def ev(p, r):
         return p.ev.get(r, 0.0)
