@@ -61,16 +61,23 @@ def expected_coach_points(mean_margin: float, rules: GameRules, sigma: float = 1
     return float(sum(p * q for p, q in zip(points, probs, strict=True)))
 
 
-def price_change(score: ArrayLike, price: ArrayLike, rules: GameRules) -> ArrayLike:
+def price_change(
+    score: ArrayLike, price: ArrayLike, rules: GameRules, played: ArrayLike | None = None
+) -> ArrayLike:
     """Credits a player gains or loses after one game.
 
-    +/- ``price_step`` for every ``price_step_points`` points his score is
-    above or below his current price, in whole steps, never below the floor.
+    ``score`` is whatever ``rules.price_basis`` names (raw PIR by default).
+    +/- ``price_step`` per ``price_step_points`` above or below his current
+    price, rounded to whole steps; ``price_dnp_change`` if he did not play
+    (``played`` False); never below the floor.
     """
 
     price = np.asarray(price, dtype=float)
-    steps = np.trunc((np.asarray(score, dtype=float) - price) / rules.price_step_points)
+    x = (np.asarray(score, dtype=float) - price) / rules.price_step_points
+    steps = np.round(x) if rules.price_rounding == "round" else np.trunc(x)
     change = rules.price_step * steps
+    if played is not None:
+        change = np.where(played, change, rules.price_dnp_change)
     # The floor only limits losses: a player listed below it (possible in
     # custom data) must not be lifted up to it.
     return np.maximum(change, np.minimum(0.0, rules.price_floor - price))

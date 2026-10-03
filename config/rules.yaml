@@ -72,11 +72,17 @@ transfers:
 pricing:
   sell_at: current
   profit_retention: 1.0
-  # Player prices move after every game on that game alone: +/- `step`
-  # credits for every `step_points` fantasy points above/below the current
-  # price, in whole steps (a 12.0 player scoring 21 moves to 12.4). The
-  # official formula is undisclosed; this is the observed rule of thumb.
+  # Player prices move after every game on that game alone. The official
+  # formula is undisclosed; this is fitted on every Round 1 2026-27 player
+  # (226 lines, opening vs Round 2 prices): change = step * round((PIR -
+  # price) / step_points), on raw PIR -- the win bonus does not count -- and a
+  # flat `dnp_change` for a player who does not play. It reproduces 82% of
+  # changes exactly (mean error 0.02 credits); the linear fit is 0.042 credits
+  # per point, correlation 0.99. A 12.0 player with 21 PIR moves to 12.4.
   # Coaches follow a different rule and are not modelled.
-  step_points: 2.0
+  basis: pir          # pir | fantasy
+  rounding: round     # round | trunc
+  step_points: 2.25
   step: 0.1
+  dnp_change: -0.1
   floor: 4.0

@@ -82,9 +82,31 @@ class TestPriceChange:
 
         assert scoring.price_change(21, 12.0, rules) == pytest.approx(0.4)
 
-    def test_whole_steps_only(self, rules):
-        assert scoring.price_change(13.9, 12.0, rules) == pytest.approx(0.0)
-        assert scoring.price_change(14.0, 12.0, rules) == pytest.approx(0.1)
+    def test_rounds_to_whole_steps(self, rules):
+        assert scoring.price_change(13.1, 12.0, rules) == pytest.approx(0.0)
+        assert scoring.price_change(13.2, 12.0, rules) == pytest.approx(0.1)
+
+    def test_fitted_on_round_1(self, rules):
+        """Real Round 1 2026-27 changes (raw PIR, opening -> Round 2 price).
+
+        The rule matches 82% of players exactly, so a few real cases miss by one
+        step -- e.g. Wright (9 PIR at 14.0) actually lost 0.3, the rule says 0.2.
+        """
+
+        cases = [  # (PIR, price, actual change)
+            (30, 17.0, 0.6),  # Vezenkov
+            (18, 14.8, 0.1),  # Francisco
+            (10, 4.7, 0.2),  # Saint-Supery
+            (0, 7.0, -0.3),  # Parra
+            (12, 4.5, 0.3),  # Mantzoukas
+            (14, 9.7, 0.2),  # Williams-Goss
+        ]
+        for pir, price, actual in cases:
+            assert scoring.price_change(pir, price, rules) == pytest.approx(actual)
+
+    def test_a_player_who_sits_out_loses_a_flat_step(self, rules):
+        assert scoring.price_change(0, 12.0, rules, played=False) == pytest.approx(-0.1)
+        assert scoring.price_change(0, 4.0, rules, played=False) == pytest.approx(0.0)
 
     def test_losses_mirror_gains(self, rules):
         assert scoring.price_change(3, 12.0, rules) == pytest.approx(-0.4)

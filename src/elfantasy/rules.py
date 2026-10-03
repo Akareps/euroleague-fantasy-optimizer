@@ -38,8 +38,11 @@ class GameRules:
     coach_counts_as_transfer: bool = True
     unlimited_after_rounds: tuple[int, ...] = ()
 
-    price_step_points: float = 2.0
+    price_basis: str = "pir"  # the score prices react to: "pir" or "fantasy"
+    price_rounding: str = "round"  # "round" or "trunc" to whole steps
+    price_step_points: float = 2.25
     price_step: float = 0.1
+    price_dnp_change: float = -0.1
     price_floor: float = 4.0
 
     @property
@@ -96,7 +99,10 @@ class GameRules:
             unlimited_after_rounds=tuple(
                 int(x) for x in get("transfers.unlimited_after_rounds", [])
             ),
-            price_step_points=float(get("pricing.step_points", 2.0)),
+            price_basis=str(get("pricing.basis", "pir")),
+            price_rounding=str(get("pricing.rounding", "round")),
+            price_step_points=float(get("pricing.step_points", 2.25)),
             price_step=float(get("pricing.step", 0.1)),
+            price_dnp_change=float(get("pricing.dnp_change", -0.1)),
             price_floor=float(get("pricing.floor", 4.0)),
         )
