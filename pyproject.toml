@@ -53,6 +53,10 @@ Issues = "https://github.com/Akareps/euroleague-fantasy-optimizer/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["src/elfantasy"]
 
+# Ship the default rules and model config so an installed package runs as-is.
+[tool.hatch.build.targets.wheel.force-include]
+"config" = "elfantasy/_config"
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"

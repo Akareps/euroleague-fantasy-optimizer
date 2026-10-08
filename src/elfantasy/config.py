@@ -20,7 +20,29 @@ from typing import Any
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG_DIR = REPO_ROOT / "config"
+# Installed wheels carry a copy of config/ here (see pyproject.toml).
+PACKAGED_CONFIG_DIR = Path(__file__).resolve().parent / "_config"
+
+
+def in_source_checkout(root: Path = REPO_ROOT) -> bool:
+    return (root / "config" / "rules.yaml").is_file()
+
+
+def default_config_dir(root: Path = REPO_ROOT) -> Path:
+    """The repository's config/ in a source checkout, else the packaged copy."""
+    return root / "config" if in_source_checkout(root) else PACKAGED_CONFIG_DIR
+
+
+def default_data_dir(root: Path = REPO_ROOT) -> Path:
+    """data/ in a source checkout, else a per-user data folder."""
+    if in_source_checkout(root):
+        return root / "data"
+    from platformdirs import user_data_dir
+
+    return Path(user_data_dir("elfantasy", appauthor=False))
+
+
+DEFAULT_CONFIG_DIR = default_config_dir()
 
 
 class ConfigError(RuntimeError):
@@ -123,7 +145,7 @@ def load_settings(
     rules = Section(_read_yaml(cdir / rules_file), "rules")
     model = Section(_read_yaml(cdir / model_file), "model")
 
-    data_dir = Path(os.getenv("ELFANTASY_DATA_DIR", REPO_ROOT / "data"))
+    data_dir = Path(os.getenv("ELFANTASY_DATA_DIR") or default_data_dir())
     data_dir.mkdir(parents=True, exist_ok=True)
 
     season = os.getenv("EL_SEASON") or str(rules.get("season", "E2025"))
