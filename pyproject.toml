@@ -69,6 +69,7 @@ ignore = ["E501"]
 # Typer's whole API is function calls in argument defaults; that is the
 # documented idiom, not an accident.
 "src/elfantasy/cli.py" = ["B008"]
+"src/elfantasy/season/cli.py" = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

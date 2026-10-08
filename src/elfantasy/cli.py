@@ -10,6 +10,7 @@ elfantasy squad                     # full rebuild, squad only (no lineup rules)
 elfantasy transfers -s my_squad.yaml  # transfers, squad only (no lineup rules)
 elfantasy value                     # best points per credit
 elfantasy fixtures                  # schedule difficulty over the horizon
+elfantasy season ...                # the round-by-round season workflow (see `season --help`)
 """
 
 from __future__ import annotations
@@ -27,12 +28,14 @@ from elfantasy.data.sample import build_sample_dataset
 from elfantasy.dataset import Dataset
 from elfantasy.optimize.squad import InfeasibleError
 from elfantasy.pipeline import Pipeline
+from elfantasy.season.cli import app as season_app
 
 app = typer.Typer(
     add_completion=False,
     help="Projection and optimisation for EuroLeague Fantasy.",
     no_args_is_help=True,
 )
+app.add_typer(season_app, name="season")
 
 
 def _setup_logging(verbose: bool) -> None:

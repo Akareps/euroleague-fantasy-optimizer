@@ -1,5 +1,9 @@
 # Round 1, 2026-27: a worked example
 
+> Superseded for later rounds by `elfantasy season` (inputs in
+> [`seasons/2026-27`](../../seasons/2026-27)), which ports this model into the
+> package and reproduces its Round 1 projections exactly.
+
 How the Round 1 team was built, reproducible end to end. Round 1 is the
 awkward case: no games have been played this season, so projections have to
 come from last season's totals, the game's own prices, betting lines and

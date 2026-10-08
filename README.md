@@ -269,10 +269,29 @@ the armband to Y"*.
 prints the minutes build-up, every context multiplier, and the model/market
 blend that produced the number.
 
-For an early-season round with no current-season data, see the worked example
-in [`scripts/round1_2026`](scripts/round1_2026). It builds preseason
-projections from last season's totals, the game's prices and the betting
-lines.
+### The season workflow
+
+The 2026-27 season is run round by round with `elfantasy season`, from
+hand-researched inputs committed as YAML under
+[`seasons/2026-27`](seasons/2026-27) (injuries, betting lines, eye-test notes)
+plus a git-ignored file with your squad, bank and the app's prices:
+
+```bash
+elfantasy season fetch                  # schedule + box scores of finished rounds
+elfantasy season project --round 5      # projections for Rounds 5-7
+elfantasy season plan --round 5         # transfers, lineup, Turn plan
+elfantasy season compare --round 5      # named plans head to head
+elfantasy season backtest               # every finished round, chronologically
+```
+
+Its model starts from a preseason prior (last season, opening prices, named
+role evidence), updates on every game played, and calibrates against
+re-projections of every past round made with only the information available
+then. Any past round can be re-run exactly. See the
+[season README](seasons/2026-27/README.md) for the weekly routine.
+
+The original Round 1 scripts in [`scripts/round1_2026`](scripts/round1_2026)
+are kept as a worked example; the season workflow supersedes them.
 
 ### The transfer ladder
 
