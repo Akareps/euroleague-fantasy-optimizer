@@ -18,3 +18,6 @@ data/*.db
 .DS_Store
 .idea/
 .vscode/
+
+# Personal season inputs: squad, bank, the prices the app shows
+seasons/*/private/

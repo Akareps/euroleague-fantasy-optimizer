@@ -1,0 +1,15 @@
+# Copy to private/rNN.yaml (git-ignored) and fill in from the app.
+round: 5
+squad:            # your ten players, as the price list spells them
+  - Elijah Bryant
+  - Nadir Hifi
+  # ...
+coach: Pedro Martinez
+bank: 0.5         # credits not spent
+prices:           # what the app shows this round; anything missing is estimated
+  - {club: HTA, player: Elijah Bryant, price: 17.1}
+  - {club: PRS, player: Nadir Hifi, price: 14.5}
+plans:            # optional: named alternatives for `elfantasy season compare`
+  keep the core:
+    players: [Elijah Bryant, Nadir Hifi]   # all ten
+    coach: Pedro Martinez

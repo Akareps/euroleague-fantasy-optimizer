@@ -1,0 +1,77 @@
+# Round 4 (7-9 Oct 2026). Final check 7 Oct: lines OddsPortal 7 Oct; injuries Basketball
+# Sphere tracker (5 Oct 19:57) and RotoWire (nothing after 2 Oct).
+# Fill `injured_out` after the round.
+round: 4
+
+availability:  # P(plays) in rounds [4, 5, 6]
+  - {club: ASV, player: "Mathis Dossou-Yovo", p: [0.0, 0.0, 0.0]}
+  - {club: ASV, player: "TyTy Washington", p: [0.2, 0.5, 0.8]}
+  - {club: BAR, player: "Josh Nebo", p: [0.0, 0.1, 0.4], note: "calf, 2-3 weeks"}
+  - {club: BAR, player: "Tosan Evbuomwan", p: [0.3, 0.5, 0.6]}
+  - {club: BAR, player: "Yoan Makoundou", p: [0.2, 0.5, 0.6]}
+  - {club: BAS, player: "Marcio Santos", p: [0.5, 0.7, 0.85], note: "registration"}
+  - {club: BES, player: "DaQuan Jeffries", p: [0.0, 0.0, 0.0]}
+  - {club: BES, player: "Mady Sissoko", p: [0.0, 0.0, 0.0]}
+  - {club: DUB, player: "Dzanan Musa", p: [0.1, 0.3, 0.5]}
+  - {club: DUB, player: "Justin Anderson", p: [0.2, 0.5, 0.7]}
+  - {club: DUB, player: "Mam Jaiteh", p: [0.0, 0.0, 0.0]}
+  - {club: HTA, player: "Amir Coffey", p: [0.0, 0.1, 0.3], note: "several weeks"}
+  - {club: HTA, player: "Jacob Toppin", p: [0.2, 0.5, 0.7], note: "not in the 12"}
+  - {club: HTA, player: "Tamir Blatt", p: [0.0, 0.0, 0.0]}
+  - {club: HTA, player: "Tomer Ginat", p: [0.3, 0.5, 0.7]}
+  - {club: HTA, player: "Tyler Ennis", p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: "Georgios Papagiannis", p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: "Isaia Cordinier", p: [0.3, 0.5, 0.6]}
+  - {club: IST, player: "Mike James", p: [0.0, 0.0, 0.0], note: "torn Achilles, 7-9 months"}
+  - {club: MAD, player: "Gabriele Procida", p: [0.7, 0.85, 0.9]}
+  - {club: MAD, player: "Sergio Llull", p: [0.7, 0.85, 0.9], note: "did not travel in R3; R4 at home"}
+  - {club: MAD, player: "Usman Garuba", p: [0.0, 0.0, 0.0]}
+  - {club: MIL, player: "Garrison Mathews", p: [0.8, 0.9, 0.95]}
+  - {club: MIL, player: "Marko Guduric", p: [0.92, 0.97, 0.97], note: "missed R3: birth of his daughter"}
+  - {club: MIL, player: "Stefano Tonut", p: [0.75, 0.95, 0.97], note: "day to day"}
+  - {club: OLY, player: "Cory Joseph", p: [0.9, 0.95, 0.97]}
+  - {club: OLY, player: "Jean Montero", p: [0.6, 0.9, 0.95], note: "doubtful: virus"}
+  - {club: OLY, player: "Nikola Milutinov", p: [0.2, 0.5, 0.7], note: "tendinitis"}
+  - {club: PAN, player: "Juancho Hernangomez", p: [0.2, 0.6, 0.9], note: "out 1-2 weeks"}
+  - {club: PAN, player: "Kendrick Nunn", p: [0.6, 0.85, 0.95], note: "targeting Round 4"}
+  - {club: PAN, player: "Kostas Sloukas", p: [0.2, 0.4, 0.6]}
+  - {club: PAN, player: "Moustapha Fall", p: [0.2, 0.4, 0.6]}
+  - {club: PAN, player: "Nigel Hayes-Davis", p: [0.9, 0.95, 0.97], note: "cleared"}
+  - {club: PAR, player: "Derek Willis", p: [0.0, 0.1, 0.3]}
+  - {club: PAR, player: "Joffrey Lauvergne", p: [0.9, 0.95, 0.97], note: "cleared"}
+  - {club: PAR, player: "Lamar Stevens", p: [0.0, 0.5, 0.8], note: "out: finger"}
+  - {club: PAR, player: "Vanja Marinkovic", p: [0.0, 0.0, 0.0]}
+  - {club: PRS, player: "Terry Tarpey", p: [0.5, 0.8, 0.9], note: "doubtful"}
+  - {club: RED, player: "Johnathan Motley", p: [0.4, 0.7, 0.85], note: "doubtful: groin"}
+  - {club: RED, player: "Nikola Djurisic", p: [0.9, 0.95, 0.97], note: "cleared for R4"}
+  - {club: RED, player: "Patrick Baldwin Jr.", p: [0.9, 0.95, 0.97], note: "cleared for R4"}
+  - {club: TEL, player: "Daniel Theis", p: [0.5, 0.75, 0.9], note: "ankle, missed R3"}
+  - {club: TEL, player: "John DiBartolomeo", p: [0.4, 0.7, 0.85]}
+  - {club: ULK, player: "Shane Larkin", p: [0.5, 0.7, 0.85], note: "undisclosed, missed R2-R3"}
+  - {club: VIR, player: "Kevin Kokila", p: [0.0, 0.1, 0.4], note: "thigh, 2-3 weeks"}
+  - {club: ZAL, player: "Nigel Williams-Goss", p: [0.0, 0.2, 0.6], note: "thigh, 2 weeks"}
+  - {club: ZAL, player: "Saben Lee", p: [0.3, 0.6, 0.8]}
+
+moneylines:  # decimal (home, away), OddsPortal average
+  4:
+    PRS-ASV: [1.41, 2.91]
+    DUB-RED: [1.35, 3.22]
+    TEL-MIL: [1.71, 2.13]
+    MUN-VIR: [1.41, 2.9]
+    PAN-ULK: [1.52, 2.53]
+    PAM-HTA: [1.76, 2.07]
+    MAD-PAR: [1.21, 4.47]
+    OLY-IST: [1.18, 4.69]
+    BAR-ZAL: [1.74, 2.08]
+    BAS-BES: [1.7, 2.13]
+  5:
+    ULK-ZAL: [1.33, 3.31]
+    ASV-RED: [2.04, 1.77]
+    PRS-VIR: [1.42, 2.8]
+    BAR-TEL: [1.29, 3.54]
+    BAS-DUB: [3.05, 1.38]
+    MIL-MAD: [2.52, 1.52]
+    PAM-OLY: [2.08, 1.74]
+    HTA-BES: [1.4, 2.91]
+    IST-MUN: [1.34, 3.17]
+    PAR-PAN: [2.11, 1.73]

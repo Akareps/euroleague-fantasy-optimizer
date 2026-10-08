@@ -1,0 +1,112 @@
+# EuroLeague Fantasy Challenge 2026-27: season-level inputs and model settings.
+# Round-by-round inputs (injuries, odds) are in rounds/rNN.yaml.
+
+season: E2026
+name: 2026-27
+
+# Club names as price lists write them -> EuroLeague API club codes.
+clubs:
+  ASVEL: ASV
+  Anadolu Efes: IST
+  Barcelona: BAR
+  Baskonia: BAS
+  Bayern Munich: MUN
+  Besiktas: BES
+  Crvena Zvezda: RED
+  Dubai: DUB
+  Fenerbahce: ULK
+  Hapoel Tel Aviv: HTA
+  Maccabi Tel Aviv: TEL
+  Milano: MIL
+  Olympiacos: OLY
+  Panathinaikos: PAN
+  Paris: PRS
+  Partizan: PAR
+  Real Madrid: MAD
+  Valencia: PAM
+  Virtus Bologna: VIR
+  Zalgiris: ZAL
+
+# Outright title odds, decimal, OddsPortal average (23 Sep 2026): the team
+# rating prior for fixtures without a betting line yet.
+outrights:
+  OLY: 4.06
+  PAN: 4.22
+  ULK: 7.66
+  MAD: 8.07
+  HTA: 14.43
+  DUB: 15.14
+  BAR: 18.29
+  ZAL: 22.29
+  IST: 29.57
+  RED: 29.57
+  TEL: 33.86
+  PAM: 33.86
+  PAR: 35.0
+  MIL: 35.0
+  BES: 42.0
+  ASV: 47.43
+  BAS: 86.0
+  PRS: 94.0
+  MUN: 94.0
+  VIR: 94.0
+
+# Preseason role evidence (named sources, 21-23 Sep): multipliers on the
+# statistical baseline. Only shapes the prior; games played take over.
+role:
+  - {club: PAM, player: "TJ Shorts", mult: 1.2, note: "leader of new team; 29 PIR in Super Cup"}
+  - {club: PAN, player: "Sylvain Francisco", mult: 1.08, note: "~30 min expected with Nunn out"}
+  - {club: BAR, player: "Joel Parra", mult: 1.3, note: "double-digit PIR through preseason; frontcourt depleted"}
+  - {club: PAN, player: "Eleftherios Mantzoukas", mult: 1.4, note: "won real minutes in preseason"}
+  - {club: BAS, player: "Stefan Joksimovic", mult: 1.35, note: "set to earn minutes immediately"}
+  - {club: BAS, player: "Matteo Spagnolo", mult: 1.25, note: "~22 min, 10 pts 8 reb first official game"}
+  - {club: PAM, player: "Mario Saint-Supery", mult: 1.3, note: "~18 min, 10 PIR first official game"}
+  - {club: BAR, player: "Juan Nunez", mult: 1.2, note: "~15 min with thin PG depth"}
+  - {club: ZAL, player: "Nigel Williams-Goss", mult: 1.15, note: "more on-ball work with Francisco gone"}
+  - {club: PRS, player: "Allan Dokossi", mult: 1.15, note: "24 PIR in 22 min first official game"}
+  - {club: PAR, player: "Kevarrius Hayes", mult: 1.1, note: "~20 min expected"}
+  - {club: PAR, player: "Lamar Stevens", mult: 1.1, note: "~25 min in thin forward rotation"}
+  - {club: PAR, player: "Arijan Lakic", mult: 1.2, note: "10-15 min in tight rotation"}
+  - {club: BES, player: "Eugene Omoruyi", mult: 1.1, note: "starting PF, focal point"}
+  - {club: MUN, player: "Duane Washington", mult: 1.1, note: "primary scoring role"}
+  - {club: TEL, player: "Yam Madar", mult: 1.1, note: "designated backcourt leader"}
+  - {club: ZAL, player: "Azuolas Tubelis", mult: 1.1, note: "inherits departed scorers' touches"}
+  - {club: DUB, player: "Tornike Shengelia", mult: 0.88, note: "crowded Dubai frontcourt"}
+  - {club: ULK, player: "Trent Forrest", mult: 0.75, note: "~15 min in deep backcourt"}
+  - {club: DUB, player: "Elie Okobo", mult: 0.88, note: "fierce backcourt competition"}
+  - {club: OLY, player: "Codi Miller-McIntyre", mult: 0.88, note: "facilitator behind Montero"}
+  - {club: ULK, player: "Shane Larkin", mult: 0.9, note: "deep backcourt (on top of injury doubt)"}
+
+# Expected minutes stated by a source, for players with no EuroLeague history.
+minutes_expert:
+  - {club: PAN, player: "Eleftherios Mantzoukas", minutes: 14.0, note: "official tips: took the minutes expected for Mitoglou"}
+  - {club: PAR, player: "Arijan Lakic", minutes: 12.0, note: "Basketball Sphere: 10-15 min"}
+  - {club: PAM, player: "Mario Saint-Supery", minutes: 17.0, note: "official tips: 18 min first official game"}
+  - {club: BAR, player: "Juan Nunez", minutes: 14.0, note: "Basketball Sphere: ~15 min"}
+  - {club: BAS, player: "Stefan Joksimovic", minutes: 13.0, note: "both sources: immediate minutes"}
+
+# Round 1 only: minutes restriction on return from a knock.
+minutes_factor_round1:
+  - {club: OLY, player: "Nikola Milutinov", factor: 0.85}
+  - {club: PAM, player: "Jasiel Rivero", factor: 0.85}
+
+# What only watching shows: a multiplier on projected production from round
+# `since` on, with the reason. Not used for calibration or backtests.
+eye_test:
+  - {club: PRS, player: "Allan Dokossi", mult: 0.8, since: 3, reason: "user: looked poor in R1; -1 PIR in R2"}
+
+model:
+  horizon: 3          # rounds projected per run: this one and the next two
+  gamma: 0.4          # weight of each later round relative to the one before
+  evidence:           # prior weights, chosen by data/cache/r4 backtest on Rounds 2-3
+    k_min_strong: 0.5  # minutes prior, in games: same club, 10+ games last season
+    k_min_weak: 0.5
+    n_rate_strong: 180.0  # PIR/min prior, in minutes
+    n_rate_hist: 180.0
+    n_rate_new: 180.0
+    recency: 1.3       # each newer round counts 1.3x the one before
+  tuned_on: [2, 3]     # rounds used to choose the evidence weights (backtest flags them)
+  calibration:        # additive group x tier corrections, empirical-Bayes shrunk
+    prior_sd: 1.5
+    cv: 0.634
+    tiers: [[0.0, 10.0], [10.0, 15.0], [15.0, 40.0]]

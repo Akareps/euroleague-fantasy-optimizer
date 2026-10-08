@@ -1,0 +1,70 @@
+# Round 1 (24-25 Sep 2026). Read 23 Sep: official injury report, Basketball
+# Sphere tracker, RotoWire; lines OddsPortal 23 Sep.
+round: 1
+
+availability:  # P(plays) in rounds [1, 2, 3]
+  - {club: ASV, player: "Mathis Dossou-Yovo", p: [0.0, 0.0, 0.0], note: "back in November"}
+  - {club: BAR, player: "Tosan Evbuomwan", p: [0.0, 0.3, 0.5], note: "shoulder, 4 Sep"}
+  - {club: BAR, player: "Yoan Makoundou", p: [0.0, 0.0, 0.0], note: "~6 weeks from 10 Sep"}
+  - {club: BAS, player: "Alex Len", p: [0.05, 0.6, 0.8], note: "RotoWire 23 Sep: unavailable Thursday"}
+  - {club: BES, player: "Mady Sissoko", p: [0.0, 0.0, 0.0], note: "contract frozen"}
+  - {club: DUB, player: "Dwayne Bacon", p: [0.6, 0.85, 0.9], note: "head injury in SuperCup"}
+  - {club: DUB, player: "Dzanan Musa", p: [0.1, 0.5, 0.7], note: "RotoWire 22 Sep: out, knee"}
+  - {club: HTA, player: "Tomer Ginat", p: [0.0, 0.5, 0.7]}
+  - {club: HTA, player: "Tyler Ennis", p: [0.0, 0.0, 0.0], note: "Achilles"}
+  - {club: IST, player: "Georgios Papagiannis", p: [0.0, 0.0, 0.0], note: "ACL"}
+  - {club: IST, player: "Isaia Cordinier", p: [0.0, 0.3, 0.5]}
+  - {club: MAD, player: "Usman Garuba", p: [0.0, 0.0, 0.0], note: "Achilles"}
+  - {club: OLY, player: "Nikola Milutinov", p: [0.85, 0.95, 0.95], note: "official: available; RotoWire: leg, travelling"}
+  - {club: PAM, player: "Jasiel Rivero", p: [0.8, 0.9, 0.95], note: "RotoWire 22 Sep: minor muscular, limited"}
+  - {club: PAM, player: "Neal Sako", p: [0.4, 0.6, 0.8], note: "groin, 22 Sep"}
+  - {club: PAN, player: "Kendrick Nunn", p: [0.0, 0.0, 0.0], note: "knee surgery 19 Aug"}
+  - {club: PAN, player: "Kostas Sloukas", p: [0.0, 0.25, 0.35], note: "RotoWire 22 Sep: \"15-to-20 days\""}
+  - {club: PAN, player: "Moustapha Fall", p: [0.0, 0.3, 0.5], note: "hamstring, 9 Sep"}
+  - {club: PAN, player: "Nigel Hayes-Davis", p: [0.0, 0.0, 0.0], note: "6 weeks from 1 Sep"}
+  - {club: RED, player: "Nikola Djurisic", p: [0.0, 0.5, 0.75], note: "3-4 weeks from 27 Aug"}
+  - {club: RED, player: "Semi Ojeleye", p: [0.92, 0.95, 0.95]}
+  - {club: TEL, player: "Daniel Theis", p: [0.92, 0.95, 0.95]}
+  - {club: TEL, player: "Jimmy Clark", p: [0.9, 0.95, 0.95]}
+  - {club: ULK, player: "Shane Larkin", p: [0.5, 0.75, 0.85], note: "missed both Super Cups"}
+  - {club: ZAL, player: "Deividas Sirvydis", p: [0.0, 0.6, 0.8], note: "did not travel"}
+  - {club: ZAL, player: "Kaodirichi Akobundu-Ehiogu", p: [0.0, 0.6, 0.8]}
+  - {club: ZAL, player: "Saben Lee", p: [0.3, 0.6, 0.8], note: "official GTD; RotoWire: out \"a few weeks\""}
+
+moneylines:  # decimal (home, away), OddsPortal average
+  1:
+    HTA-MUN: [1.3, 3.54]
+    DUB-MAD: [1.66, 2.21]
+    RED-ZAL: [1.67, 2.2]
+    PAN-PRS: [1.15, 5.39]
+    BAR-IST: [1.69, 2.16]
+    BAS-OLY: [4.12, 1.23]
+    ASV-TEL: [2.46, 1.54]
+    BES-PAM: [1.7, 2.13]
+    ULK-VIR: [1.15, 5.37]
+    PAR-MIL: [1.62, 2.27]
+
+injured_out:  # missed the round injured: their absence is not read as a coach's decision
+  - {club: ASV, player: "Mathis Dossou-Yovo"}
+  - {club: ASV, player: "TyTy Washington"}
+  - {club: BAR, player: "Tosan Evbuomwan"}
+  - {club: BAR, player: "Yoan Makoundou"}
+  - {club: BAS, player: "Alex Len"}
+  - {club: BES, player: "Mady Sissoko"}
+  - {club: DUB, player: "Dzanan Musa"}
+  - {club: HTA, player: "Amir Coffey"}
+  - {club: HTA, player: "Tomer Ginat"}
+  - {club: HTA, player: "Tyler Ennis"}
+  - {club: IST, player: "Georgios Papagiannis"}
+  - {club: IST, player: "Isaia Cordinier"}
+  - {club: MAD, player: "Usman Garuba"}
+  - {club: PAN, player: "Kendrick Nunn"}
+  - {club: PAN, player: "Kostas Sloukas"}
+  - {club: PAN, player: "Moustapha Fall"}
+  - {club: PAN, player: "Nigel Hayes-Davis"}
+  - {club: PAN, player: "Nikos Rogkavopoulos"}
+  - {club: PAR, player: "Joffrey Lauvergne"}
+  - {club: RED, player: "Nikola Djurisic"}
+  - {club: ULK, player: "Marcus Bingham"}
+  - {club: ULK, player: "Shane Larkin"}
+  - {club: ZAL, player: "Saben Lee"}

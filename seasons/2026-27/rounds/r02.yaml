@@ -1,0 +1,120 @@
+# Round 2 (29-30 Sep 2026). Lines OddsPortal; injuries Basketball Sphere / RotoWire.
+round: 2
+
+availability:  # P(plays) in rounds [2, 3, 4]
+  - {club: ASV, player: "Mathis Dossou-Yovo", p: [0.0, 0.0, 0.0]}
+  - {club: ASV, player: "TyTy Washington", p: [0.4, 0.7, 0.85]}
+  - {club: BAR, player: "Josh Nebo", p: [0.0, 0.0, 0.25], note: "calf, 2-3 weeks"}
+  - {club: BAR, player: "Tosan Evbuomwan", p: [0.0, 0.25, 0.5]}
+  - {club: BAR, player: "Yoan Makoundou", p: [0.0, 0.0, 0.2]}
+  - {club: BAS, player: "Alex Len", p: [0.6, 0.8, 0.9]}
+  - {club: BES, player: "DaQuan Jeffries", p: [0.0, 0.0, 0.0], note: "wrist fracture"}
+  - {club: BES, player: "Furkan Korkmaz", p: [0.3, 0.5, 0.6], note: "coach's decision in R1"}
+  - {club: BES, player: "Mady Sissoko", p: [0.0, 0.0, 0.0]}
+  - {club: DUB, player: "Dzanan Musa", p: [0.0, 0.3, 0.5]}
+  - {club: DUB, player: "Mam Jaiteh", p: [0.0, 0.0, 0.0]}
+  - {club: HTA, player: "Amir Coffey", p: [0.0, 0.0, 0.1]}
+  - {club: HTA, player: "Tamir Blatt", p: [0.0, 0.0, 0.0]}
+  - {club: HTA, player: "Tomer Ginat", p: [0.0, 0.3, 0.5]}
+  - {club: HTA, player: "Tyler Ennis", p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: "Brice Dessert", p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: "Georgios Papagiannis", p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: "Isaia Cordinier", p: [0.0, 0.3, 0.5]}
+  - {club: MAD, player: "Mikael Jantunen", p: [0.8, 0.9, 0.95]}
+  - {club: MAD, player: "Usman Garuba", p: [0.0, 0.0, 0.0]}
+  - {club: MIL, player: "Garrison Mathews", p: [0.7, 0.85, 0.9]}
+  - {club: OLY, player: "Bryant Dunston", p: [0.8, 0.9, 0.95]}
+  - {club: OLY, player: "Nikola Milutinov", p: [0.0, 0.25, 0.6], note: "tendinitis, out"}
+  - {club: PAM, player: "Dylan Osetkowski", p: [0.7, 0.85, 0.9]}
+  - {club: PAN, player: "Juancho Hernangomez", p: [0.3, 0.6, 0.85], note: "adductor spasm, doubtful"}
+  - {club: PAN, player: "Kendrick Nunn", p: [0.0, 0.0, 0.6], note: "targeting Round 4"}
+  - {club: PAN, player: "Kostas Sloukas", p: [0.0, 0.15, 0.4]}
+  - {club: PAN, player: "Moustapha Fall", p: [0.0, 0.3, 0.5]}
+  - {club: PAN, player: "Nigel Hayes-Davis", p: [0.0, 0.0, 0.3]}
+  - {club: PAN, player: "Nikos Rogkavopoulos", p: [0.7, 0.85, 0.9]}
+  - {club: PAR, player: "Derek Willis", p: [0.0, 0.0, 0.0], note: "ankle, several weeks"}
+  - {club: PAR, player: "Joffrey Lauvergne", p: [0.0, 0.75, 0.9], note: "back for Round 3"}
+  - {club: PAR, player: "Vanja Marinkovic", p: [0.0, 0.0, 0.0]}
+  - {club: RED, player: "Chima Moneke", p: [0.75, 0.9, 0.95], note: "day to day"}
+  - {club: RED, player: "Nikola Djurisic", p: [0.0, 0.4, 0.7]}
+  - {club: RED, player: "Patrick Baldwin Jr.", p: [0.7, 0.85, 0.9]}
+  - {club: ULK, player: "Marcus Bingham", p: [0.0, 0.3, 0.6]}
+  - {club: ULK, player: "Shane Larkin", p: [0.7, 0.85, 0.9]}
+  - {club: VIR, player: "Kevin Kokila", p: [0.0, 0.0, 0.2]}
+  - {club: ZAL, player: "Nigel Williams-Goss", p: [0.0, 0.0, 0.35], note: "hamstring, ~2 weeks from 24 Sep"}
+  - {club: ZAL, player: "Saben Lee", p: [0.5, 0.7, 0.85]}
+
+moneylines:  # decimal (home, away), OddsPortal average
+  2:
+    DUB-BAR: [1.3, 3.53]
+    IST-MAD: [1.81, 1.99]
+    ZAL-OLY: [2.2, 1.67]
+    ULK-MUN: [1.2, 4.47]
+    RED-HTA: [1.68, 2.18]
+    MIL-VIR: [1.36, 3.12]
+    PAM-BAS: [1.26, 3.81]
+    PRS-PAR: [1.67, 2.19]
+    TEL-BES: [1.49, 2.57]
+    PAN-ASV: [1.05, 9.43]
+  3:
+    HTA-MAD: [1.84, 1.95]
+    RED-IST: [1.48, 2.5]
+    VIR-OLY: [4.41, 1.21]
+    PRS-ZAL: [2.2, 1.67]
+    BES-BAR: [1.6, 2.33]
+    ULK-DUB: [1.49, 2.6]
+    MUN-PAR: [1.65, 2.15]
+    ASV-PAM: [2.4, 1.57]
+    PAN-TEL: [1.14, 5.78]
+    BAS-MIL: [2.27, 1.63]
+
+injured_out:  # missed the round injured: their absence is not read as a coach's decision
+  - {club: ASV, player: "Mathis Dossou-Yovo"}
+  - {club: ASV, player: "TyTy Washington"}
+  - {club: BAR, player: "Josh Nebo"}
+  - {club: BAR, player: "Tosan Evbuomwan"}
+  - {club: BAR, player: "Yoan Makoundou"}
+  - {club: BAS, player: "Alex Len"}
+  - {club: BAS, player: "Marcio Santos"}
+  - {club: BES, player: "DaQuan Jeffries"}
+  - {club: BES, player: "Furkan Korkmaz"}
+  - {club: BES, player: "Mady Sissoko"}
+  - {club: DUB, player: "Dzanan Musa"}
+  - {club: DUB, player: "Mam Jaiteh"}
+  - {club: HTA, player: "Amir Coffey"}
+  - {club: HTA, player: "Jacob Toppin"}
+  - {club: HTA, player: "Tamir Blatt"}
+  - {club: HTA, player: "Tomer Ginat"}
+  - {club: HTA, player: "Tyler Ennis"}
+  - {club: IST, player: "Brice Dessert"}
+  - {club: IST, player: "Georgios Papagiannis"}
+  - {club: IST, player: "Isaia Cordinier"}
+  - {club: MAD, player: "Mikael Jantunen"}
+  - {club: MAD, player: "Usman Garuba"}
+  - {club: MIL, player: "Garrison Mathews"}
+  - {club: OLY, player: "Bryant Dunston"}
+  - {club: OLY, player: "Cory Joseph"}
+  - {club: OLY, player: "George Papas"}
+  - {club: OLY, player: "Nikola Milutinov"}
+  - {club: PAM, player: "Dylan Osetkowski"}
+  - {club: PAN, player: "Juancho Hernangomez"}
+  - {club: PAN, player: "Kendrick Nunn"}
+  - {club: PAN, player: "Kostas Sloukas"}
+  - {club: PAN, player: "Moustapha Fall"}
+  - {club: PAN, player: "Nigel Hayes-Davis"}
+  - {club: PAN, player: "Nikos Rogkavopoulos"}
+  - {club: PAR, player: "Derek Willis"}
+  - {club: PAR, player: "Joffrey Lauvergne"}
+  - {club: PAR, player: "Vanja Marinkovic"}
+  - {club: RED, player: "Chima Moneke"}
+  - {club: RED, player: "Nikola Djurisic"}
+  - {club: RED, player: "Patrick Baldwin Jr."}
+  - {club: ULK, player: "Marcus Bingham"}
+  - {club: ULK, player: "Shane Larkin"}
+  - {club: VIR, player: "Kevin Kokila"}
+  - {club: ZAL, player: "Nigel Williams-Goss"}
+  - {club: ZAL, player: "Saben Lee"}
+
+minutes_expert:  # stated roles from this round on (dropped once a game contradicts them)
+  - {club: ZAL, player: "Dovydas Giedraitis", minutes: 17.0, note: "started, 20 min in LKL after Williams-Goss's injury;"}
+  - {club: PAR, player: "Nikola Tanaskovic", minutes: 21.0, note: "\"more than 20 minutes\" with Willis out; 20.6 in R1"}
