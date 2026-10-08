@@ -395,8 +395,29 @@ def lineup_plan(plan, title: str = "Lineup") -> None:
         f"price changes {ev.price_value:+.1f}, bank {ev.bank_value:+.1f}"
     )
 
+    steps = turn_plan_steps(plan)
+    if steps:
+        console.print(Panel("\n".join(f"- {s}" for s in steps), title="Turn plan", expand=False))
+    if plan.sold or plan.coach_changed:
+        names = {p.player_id: p.name for p in sim.players}
+        out = ", ".join(names.get(pid, pid) for pid in plan.sold) or "-"
+        inn = ", ".join(names.get(pid, pid) for pid in plan.bought) or "-"
+        coach_note = " (+ coach change)" if plan.coach_changed else ""
+        console.print(Panel(f"out: {out}\nin:  {inn}{coach_note}", title="Transfers", expand=False))
+
+
+def turn_plan_steps(plan) -> list[str]:
+    """What to do before the first game day and between game days, in words.
+
+    A bench player is only pointed at field players he can replace without
+    breaking the formation (the 6th-man spot always works) -- the same rule the
+    simulator applies.
+    """
+
+    sim, ev = plan.sim, plan.evaluation
+    lu = ev.lineup
     steps = []
-    late_bench = sorted(plan.late_bench(), key=lambda i: -sim.E[i])
+    late_bench = plan.late_bench()
     last = max(sim.turn[i] for i in plan.ids)
     forced = [i for i in (*lu.starters, lu.sixth) if i is not None and 0 < sim.turn[i] == last]
     if late_bench or forced:
@@ -409,10 +430,28 @@ def lineup_plan(plan, title: str = "Lineup") -> None:
             )
         steps.append(note + ".")
     for j in sorted(late_bench, key=lambda j: (sim.turn[j], -sim.E[j])):
+        played = [
+            i for i in (*lu.starters, lu.sixth) if i is not None and sim.turn[i] < sim.turn[j]
+        ]
+        legal = [
+            i
+            for i in played
+            if i == lu.sixth or sim.legal([j if s == i else s for s in lu.starters])
+        ]
+        if not legal:
+            continue
+        if legal == played:
+            whom = "the lowest-scoring field player who has already played"
+        else:
+            blocked = ", ".join(sim.players[i].name for i in played if i not in legal)
+            whom = (
+                f"whichever of {', '.join(sim.players[i].name for i in legal)} scored lowest "
+                f"(not {blocked}: that swap would break the formation)"
+            )
         steps.append(
-            f"Before Turn {sim.turn[j] + 1}: bring on {sim.players[j].name} for the lowest-"
-            f"scoring field player who has already played, if that player scored under "
-            f"{sim.E[j]:.0f} (happens in {ev.promoted.get(j, 0):.0%} of simulations)."
+            f"Before Turn {sim.turn[j] + 1}: bring on {sim.players[j].name} for {whom}, if "
+            f"that player scored under {sim.E[j]:.0f} (happens in "
+            f"{ev.promoted.get(j, 0):.0%} of simulations)."
         )
     switches = [(i, s) for i, s in ev.captained.items() if i != lu.captain]
     for m, share in sorted(switches, key=lambda t: -t[1]):
@@ -421,11 +460,4 @@ def lineup_plan(plan, title: str = "Lineup") -> None:
             f"to {sim.players[m].name} -- he must be in the starting five, not the 6th-man "
             f"spot ({share:.0%} of simulations)."
         )
-    if steps:
-        console.print(Panel("\n".join(f"- {s}" for s in steps), title="Turn plan", expand=False))
-    if plan.sold or plan.coach_changed:
-        names = {p.player_id: p.name for p in sim.players}
-        out = ", ".join(names.get(pid, pid) for pid in plan.sold) or "-"
-        inn = ", ".join(names.get(pid, pid) for pid in plan.bought) or "-"
-        coach_note = " (+ coach change)" if plan.coach_changed else ""
-        console.print(Panel(f"out: {out}\nin:  {inn}{coach_note}", title="Transfers", expand=False))
+    return steps

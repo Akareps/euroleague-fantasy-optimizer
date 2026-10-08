@@ -135,7 +135,9 @@ def optimise_lineup(
     if not pool:
         raise InfeasibleError("no candidates supplied")
     ids = range(len(pool))
-    use_coach = rules.head_coach and bool(coaches)
+    if rules.head_coach and not coaches:
+        raise InfeasibleError("the rules require a head coach, but no coaches were supplied")
+    use_coach = rules.head_coach
     w_future = future_slot_weight(rules)
 
     prob = pulp.LpProblem("elfantasy_lineup", pulp.LpMaximize)

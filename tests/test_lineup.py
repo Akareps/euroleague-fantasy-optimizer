@@ -141,6 +141,10 @@ class TestLineupMilp:
     def test_future_slot_weight(self, rules):
         assert future_slot_weight(rules) == pytest.approx(0.9)
 
+    def test_a_required_coach_must_be_supplied(self, rules):
+        with pytest.raises(InfeasibleError, match="head coach"):
+            optimise_lineup(make_players(), [], rules, rounds=[1])
+
     def test_impossible_budget_raises(self, rules):
         with pytest.raises(InfeasibleError):
             optimise_lineup(make_players(), make_coaches(), rules, rounds=[1], budget=20.0)
@@ -420,3 +424,32 @@ class TestThreeTurns:
         lineup = sim.initial_lineups(ids)[0]
         W, *_ = sim._plans(ids, lineup)
         assert len(W) == 1
+
+
+def test_turn_advice_respects_the_formation(sim):
+    """A forward on the bench can replace a forward or the 6th man, never the
+    only guard or the only centre in a 1-3-1."""
+
+    from types import SimpleNamespace
+
+    from elfantasy.optimize.turns import TurnLineup
+    from elfantasy.report import turn_plan_steps
+
+    def first(pos, k, late=False):
+        return [i for i, p in enumerate(sim.players) if p.pos == pos and sim.late[i] == late][:k]
+
+    (g,), (c,) = first("G", 1), first("C", 1)
+    f1, f2, f3, f4 = first("F", 4)
+    (late_f,) = first("F", 1, late=True)
+    lineup = TurnLineup(starters=(g, f1, f2, f3, c), sixth=f4, captain=g)
+    plan = SimpleNamespace(
+        sim=sim,
+        ids=[g, f1, f2, f3, f4, c, late_f],
+        late_bench=lambda: [late_f],
+        evaluation=SimpleNamespace(lineup=lineup, promoted={}, captained={}),
+    )
+    step = next(s for s in turn_plan_steps(plan) if sim.players[late_f].name in s)
+    allowed, blocked = step.split("(not ")
+    names = [sim.players[i].name for i in (g, c)]
+    assert all(n in blocked and n not in allowed for n in names)
+    assert all(sim.players[i].name in allowed for i in (f1, f2, f3, f4))
