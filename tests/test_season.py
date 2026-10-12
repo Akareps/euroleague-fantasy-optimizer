@@ -240,3 +240,146 @@ def test_planner_compares_named_rosters_on_the_same_simulations(rules):
     rows = planner.compare(private.plans, seeds=(1,), n=400)
     assert {r["plan"] for r in rows} == {"swap a centre", "hold"}
     assert rows == sorted(rows, key=lambda r: -r["objective"])
+
+
+def test_planner_can_buy_a_player_who_is_out_this_round(rules):
+    """The MILP may pick someone unavailable now for his later rounds; the
+    simulator must know him too (it used to raise KeyError)."""
+
+    proj = _projection()
+    star = next(p for p in proj["players"] if p["name"] == "AAAG0")
+    star["price"] = 4.0
+    for r in ("2", "3"):
+        star["proj"][r]["ev"] = 60.0
+    star["proj"]["1"].update(ev=0.0, play=0.0)
+    planner = RoundPlanner(proj, rules, None, log=lambda m: None)
+    _, milp = planner.credit_value()
+    assert "AAAG0" in {p.player_id for p in milp.roster}
+    assert {p.player_id for p in planner.lp} <= {p.player_id for p in planner.sp}
+
+
+# ---------------------------------------------------------------- end to end
+def make_season(tmp_path):
+    """A four-club season: two rounds played, Round 3 to plan (Thu/Fri)."""
+
+    import yaml
+
+    clubs = ["AAA", "BBB", "CCC", "DDD"]
+    sd, dd = tmp_path / "season", tmp_path / "data"
+    root = dd / "cache" / "seasons" / "test"
+    for d in (sd / "rounds", sd / "private", root / "prior", root / "boxes"):
+        d.mkdir(parents=True)
+    joined, stats = [], []
+    for ci, club in enumerate(clubs):
+        joined.append({"name": f"Coach {club}", "club": club, "pos": "HC", "price": 5.0 + ci})
+        for k, pos in enumerate("GGGFFFCCC"):
+            code = f"P{club}{k}"
+            price = round(4.0 + 1.1 * k + 0.2 * ci, 1)
+            name = f"{club} {pos} {'abcdefghi'[k]}x"
+            joined.append({"name": name, "club": club, "pos": pos, "price": price, "code": code})
+            if k >= 1:  # every position needs regulars with 300+ minutes
+                stats.append({"player": {"code": code, "team": {"code": club}}, "gamesPlayed": 20,
+                              "minutesPlayed": 20 * (14 + 2 * k), "pir": 20 * 1.2 * price,
+                              "pointsScored": 20 * price})  # fmt: skip
+    (root / "prior" / "joined.json").write_text(json.dumps(joined))
+    (root / "prior" / "stats_E2025_acc.json").write_text(json.dumps({"players": stats}))
+    fixtures = {1: [("AAA", "BBB"), ("CCC", "DDD")], 2: [("AAA", "CCC"), ("BBB", "DDD")],
+                3: [("AAA", "DDD"), ("BBB", "CCC")], 4: [("DDD", "BBB"), ("CCC", "AAA")]}  # fmt: skip
+    games = []
+    for rnd, pairs in fixtures.items():
+        for gi, (home, away) in enumerate(pairs):
+            played = rnd <= 2
+            games.append({"identifier": f"G{rnd}{gi}", "round": rnd, "played": played,
+                          "localDate": f"2026-10-{rnd * 7 + gi - 6:02d}T20:00:00",
+                          "local": {"club": {"code": home}, "score": 85 + 3 * gi if played else 0},
+                          "road": {"club": {"code": away}, "score": 80 if played else 0}})  # fmt: skip
+    (root / "games.json").write_text(json.dumps({"data": games}))
+    for rnd in (1, 2):
+        lines = []
+        for g in (g for g in games if g["round"] == rnd):
+            for side in ("local", "road"):
+                club = g[side]["club"]["code"]
+                for p in (p for p in joined if p["club"] == club and p["pos"] != "HC"):
+                    k = int(p["code"][-1])
+                    lines.append({"player_id": p["code"], "game_id": g["identifier"], "team_code": club,
+                                  "minutes": 8.0 + 2.5 * k, "pir": round(1.1 * p["price"] + rnd)})  # fmt: skip
+        (root / "boxes" / f"round_{rnd:02d}.json").write_text(json.dumps(lines))
+    season = {"season": "E2026", "name": "test", "clubs": {c: c for c in clubs},
+              "outrights": {c: 3.0 + 3 * i for i, c in enumerate(clubs)},
+              "model": {"horizon": 3, "gamma": 0.4, "tuned_on": [2],
+                        "evidence": {"k_min_strong": 0.5, "k_min_weak": 0.5, "n_rate_strong": 180,
+                                     "n_rate_hist": 180, "n_rate_new": 180, "recency": 1.3}}}  # fmt: skip
+    (sd / "season.yaml").write_text(yaml.safe_dump(season))
+    lines = {1: {"AAA-BBB": [1.6, 2.4], "CCC-DDD": [1.9, 1.9]}, 2: {"AAA-CCC": [1.5, 2.6]},
+             3: {"AAA-DDD": [1.4, 3.0], "BBB-CCC": [2.0, 1.8]}, 4: {"DDD-BBB": [1.8, 2.0]}}  # fmt: skip
+    for rnd in (1, 2, 3):
+        doc = {"round": rnd, "availability": [],
+               "moneylines": {r: lines[r] for r in (rnd, rnd + 1) if r in lines}}  # fmt: skip
+        if rnd < 3:
+            doc["injured_out"] = []
+        else:
+            doc["availability"] = [{"club": "BBB", "player": "BBB C hx", "p": [0.0, 0.6, 1.0]}]
+        (sd / "rounds" / f"r{rnd:02d}.yaml").write_text(yaml.safe_dump(doc))
+    names = {
+        (p["club"], p["pos"], int(p["code"][-1])): p["name"] for p in joined if p["pos"] != "HC"
+    }
+    squad = [names[("AAA", "G", 0)], names[("BBB", "G", 1)], names[("CCC", "G", 0)], names[("DDD", "G", 1)],
+             names[("AAA", "F", 3)], names[("BBB", "F", 4)], names[("CCC", "F", 3)], names[("DDD", "F", 4)],
+             names[("AAA", "C", 6)], names[("CCC", "C", 7)]]  # fmt: skip
+    private = {"round": 3, "squad": squad, "coach": "Coach AAA", "bank": 2.0,
+               "prices": [{"club": "AAA", "player": squad[0], "price": 4.5}],
+               "plans": {"other centre": {"players": [*squad[:-1], names[("DDD", "C", 6)]],
+                                          "coach": "Coach AAA"}}}  # fmt: skip
+    (sd / "private" / "r03.yaml").write_text(yaml.safe_dump(private))
+    return sd, dd
+
+
+class TestEndToEnd:
+    def test_the_model_runs_on_a_whole_season(self, tmp_path, rules):
+        from elfantasy.season.backtest import run_backtest
+        from elfantasy.season.model import SeasonModel
+
+        sd, dd = make_season(tmp_path)
+        season = load_season(sd)
+        model = SeasonModel(season, SeasonData.for_season(dd, season), rules)
+        result = model.project(3, None)
+        hurt = next(p for p in result["players"] if p["name"] == "BBB C hx")
+        assert hurt["proj"]["3"]["play"] == 0.0 and hurt["proj"]["4"]["play"] == 0.6
+        assert {p["proj"]["3"]["turn"] for p in result["players"]} == {0, 1}  # Thu and Fri
+        first = next(p for p in result["players"] if p["name"] == "AAA G ax")
+        assert first["price"] != 4.0  # two rounds of games moved it
+        scores = run_backtest(model)
+        assert [s.round for s in scores] == [1, 2] and scores[1].tuned_on and scores[1].price
+
+    def test_the_commands(self, tmp_path, monkeypatch):
+        from typer.testing import CliRunner
+
+        from elfantasy.cli import app
+
+        sd, dd = make_season(tmp_path)
+        monkeypatch.setenv("ELFANTASY_DATA_DIR", str(dd))
+        runner = CliRunner()
+        for args, expect in (
+            (["season", "project", "--round", "3", "--top", "5"], "Round 3: top 5"),
+            (["season", "backtest"], "Chronological backtest"),
+            (["season", "compare", "--round", "3"], "other centre"),
+        ):
+            out = runner.invoke(app, [*args, "--season-dir", str(sd)], env={"COLUMNS": "200"})
+            assert out.exit_code == 0, out.output
+            assert expect in out.output
+
+    def test_missing_downloads_are_explained(self, tmp_path, monkeypatch):
+        from typer.testing import CliRunner
+
+        from elfantasy.cli import app
+
+        sd, dd = make_season(tmp_path)
+        (dd / "cache" / "seasons" / "test" / "boxes" / "round_02.json").unlink()
+        monkeypatch.setenv("ELFANTASY_DATA_DIR", str(dd))
+        out = CliRunner().invoke(
+            app,
+            ["season", "project", "--round", "3", "--season-dir", str(sd)],
+            env={"COLUMNS": "300"},
+        )
+        assert out.exit_code == 1
+        assert "season fetch" in out.output

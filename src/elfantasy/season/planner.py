@@ -82,6 +82,9 @@ class RoundPlanner:
         w = future_slot_weight(self.rules)
         last_day = max(p["proj"][first]["turn"] for p in self.proj["players"] if first in p["proj"])
         lp, lc, sp, sc = [], [], [], []
+        # Players out this round are simulated too (they score 0 now): the MILP
+        # may buy one for his later rounds, and both stages need the same pool.
+        out_now = []
         for p in self.proj["players"]:
             proj = p["proj"]
             if first not in proj:
@@ -91,12 +94,14 @@ class RoundPlanner:
             # MILP "late": the last game day -- the bench the Turn options want.
             lp.append(LineupPlayer(p["name"], p["name"], p["pos"], p["club"], p["price"], ev,
                                    r0["turn"] == last_day))  # fmt: skip
-            if r0["play"] <= 0.02 and p["name"] not in self.squad:
-                continue
             future = w * sum(self.gamma ** (k + 1) * ev.get(r, 0.0) for k, r in enumerate(later))
-            sp.append(SimPlayer(p["name"], p["name"], p["pos"], p["club"], r0["opp"], p["price"],
-                                r0["turn"] > 0, r0["if_plays"], r0["play"], r0["min"], r0["win"],
-                                p["sd_per_pir"], future, turn=r0["turn"]))  # fmt: skip
+            out = r0["play"] <= 0.02 and p["name"] not in self.squad
+            (out_now if out else sp).append(
+                SimPlayer(p["name"], p["name"], p["pos"], p["club"], r0["opp"], p["price"],
+                          r0["turn"] > 0, r0["if_plays"], r0["play"], r0["min"], r0["win"],
+                          p["sd_per_pir"], future, turn=r0["turn"])
+            )  # fmt: skip
+        sp += out_now
         for c in self.proj["coaches"]:
             ev = {r: c["proj"][str(r)]["ev"] for r in self.rounds if str(r) in c["proj"]}
             lc.append(LineupCoach(c["name"], c["name"], c["club"], c["price"], ev))
