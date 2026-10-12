@@ -34,6 +34,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+history = ["duckdb>=1.2"]  # bulk historical-data import for the independent experiment
 dev = [
   "pytest>=8.0",
   "pytest-cov>=5.0",
@@ -70,6 +71,8 @@ ignore = ["E501"]
 # documented idiom, not an accident.
 "src/elfantasy/cli.py" = ["B008"]
 "src/elfantasy/season/cli.py" = ["B008"]
+"src/elfantasy/experiments/cli.py" = ["B008"]
+"src/elfantasy/experiments/hierarchical_cli.py" = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,53 @@
+name: oddspapi-v1
+status: experimental
+# Starting values, not fitted or validated. Promote only after forward testing.
+market_weight: 0.35
+max_pir_shift: 6.0
+max_quote_age_hours: 36.0
+component_prior_minutes: 120.0
+# Exact aliases supplement season inputs and official schedule names.
+team_aliases:
+  BC Zalgiris Kaunas: ZAL
+  Baskonia Vitoria-Gasteiz: BAS
+  BC Olympiakos Piraeus: OLY
+  Anadolu Efes SK: IST
+  Zalgiris Kaunas: ZAL
+  Olympiakos: OLY
+  Olympiacos Piraeus: OLY
+  AS Monaco: MON
+  Monaco BC: MON
+  KK Crvena zvezda Belgrade: RED
+  Crvena zvezda mts: RED
+  EA7 Emporio Armani Milano: MIL
+  Olimpia Milano: MIL
+  LDLC ASVEL Lyon Villeurbanne: ASV
+  ASVEL Lyon Villeurbanne: ASV
+  FC Bayern Munich: MUN
+  Bayern Munchen: MUN
+  Fenerbahce Beko Istanbul: ULK
+  Anadolu Efes Istanbul: IST
+  Maccabi Playtika Tel Aviv: TEL
+  Hapoel IBI Tel Aviv: HTA
+  Panathinaikos AKTOR Athens: PAN
+  Partizan Mozzart Bet Belgrade: PAR
+  Paris Basketball: PRS
+  Dubai Basketball: DUB
+  Valencia Basket: PAM
+
+# Provider spellings observed in the Round 5 live audit. Aliases are restricted
+# to the given club and still require a unique roster match within the fixture.
+player_aliases:
+  MAD:
+    Edy Tavares: Walter Tavares
+  ULK:
+    William Clyburn: Will Clyburn
+  OLY:
+    Jean Claudio Montero: Jean Montero
+  BAS:
+    D.J. Stewart: DJ Stewart
+  PAN:
+    Nigel Hayes: Nigel Hayes-Davis
+  PAR:
+    Kyle Allman Jr.: Kyle Allman
+  PAM:
+    Nate Reuvers: Nathan Reuvers

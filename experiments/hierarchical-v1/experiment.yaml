@@ -1,0 +1,9 @@
+# Frozen before the first evaluation; do not tune on the reported test results.
+recent_half_life_games: 8.0
+old_evidence_minutes: 120.0
+efficiency_prior_attempts: 40.0
+coefficient_prior_sd: 8.0
+context_prior_sd: 0.25
+selection_prior_sd: 2.0
+covariance_shrinkage: 0.5
+min_training_rows: 500

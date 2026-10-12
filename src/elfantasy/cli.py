@@ -26,6 +26,7 @@ from elfantasy.config import load_settings
 from elfantasy.data.fantasy import load_squad_yaml, write_price_template
 from elfantasy.data.sample import build_sample_dataset
 from elfantasy.dataset import Dataset
+from elfantasy.experiments.cli import app as experiment_app
 from elfantasy.optimize.squad import InfeasibleError
 from elfantasy.pipeline import Pipeline
 from elfantasy.season.cli import app as season_app
@@ -36,6 +37,7 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(season_app, name="season")
+app.add_typer(experiment_app, name="experiment")
 
 
 def _setup_logging(verbose: bool) -> None:

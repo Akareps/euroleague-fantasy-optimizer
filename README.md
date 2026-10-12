@@ -375,6 +375,16 @@ identifies itself.
 
 ## Development
 
+An optional [OddsPapi player-prop experiment](experiments/oddspapi-v1/README.md)
+adds market data to the season projections, with exact own-model fallback and
+separate coverage, projection, planning and evaluation outputs. It is run with
+`elfantasy experiment oddspapi ...`; the normal season workflow stays the baseline.
+
+A separate [independent hierarchical experiment](experiments/hierarchical-v1/README.md)
+fits minutes, shooting opportunities/efficiency and PIR components using two
+historical seasons. `elfantasy experiment hierarchical ...` provides chronological
+evaluation and three-model comparisons; it does not replace either existing model.
+
 ```bash
 pip install -e ".[dev]"
 pytest
