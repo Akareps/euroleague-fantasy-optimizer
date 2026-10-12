@@ -75,3 +75,37 @@ moneylines:  # decimal (home, away), OddsPortal average
     HTA-BES: [1.4, 2.91]
     IST-MUN: [1.34, 3.17]
     PAR-PAN: [2.11, 1.73]
+
+# Completed-round annotation, added 12 Oct from R4 box scores and the injury
+# reports above. Only nonparticipants with reported injury/personal absences;
+# returned players who actually played retain their observed minutes as evidence.
+injured_out:
+  - {club: ASV, player: Mathis Dossou-Yovo}
+  - {club: ASV, player: TyTy Washington}
+  - {club: BAR, player: Yoan Makoundou}
+  - {club: BES, player: DaQuan Jeffries}
+  - {club: BES, player: Mady Sissoko}
+  - {club: DUB, player: Dzanan Musa}
+  - {club: DUB, player: Justin Anderson}
+  - {club: DUB, player: Mam Jaiteh}
+  - {club: HTA, player: Amir Coffey}
+  - {club: HTA, player: Tomer Ginat}
+  - {club: HTA, player: Tyler Ennis}
+  - {club: IST, player: Mike James}
+  - {club: IST, player: Isaia Cordinier}
+  - {club: IST, player: Georgios Papagiannis}
+  - {club: MAD, player: Gabriel Deck}
+  - {club: MAD, player: Usman Garuba}
+  - {club: OLY, player: Donta Hall}
+  - {club: PAM, player: Mario Saint-Supery}
+  - {club: PAN, player: Juancho Hernangomez}
+  - {club: PAN, player: Kendrick Nunn}
+  - {club: PAN, player: Kostas Sloukas}
+  - {club: PAR, player: Derek Willis}
+  - {club: PAR, player: Vanja Marinkovic}
+  - {club: PAR, player: Lamar Stevens}
+  - {club: RED, player: Johnathan Motley}
+  - {club: RED, player: Nikola Djurisic}
+  - {club: TEL, player: John DiBartolomeo}
+  - {club: ULK, player: Shane Larkin}
+  - {club: ZAL, player: Nigel Williams-Goss}
