@@ -383,3 +383,38 @@ class TestEndToEnd:
         )
         assert out.exit_code == 1
         assert "season fetch" in out.output
+
+
+def test_the_planner_stops_at_a_free_transfer_window(rules):
+    """After an unlimited-transfer window the squad can be rebuilt, so holding a
+    player beyond it is worth nothing to today's decision."""
+
+    import dataclasses
+
+    free_after_1 = dataclasses.replace(rules, unlimited_after_rounds=(1,))
+    planner = RoundPlanner(_projection(), free_after_1, None, log=lambda m: None)
+    assert planner.rounds == [1]
+    assert all(p.future_value == 0.0 for p in planner.sp)
+    assert RoundPlanner(_projection(), rules, None, log=lambda m: None).rounds == [1, 2, 3]
+
+
+def test_a_partial_name_match_cannot_take_another_players_id(tmp_path):
+    """Vitto Brown missing from the roster must not inherit Anthony Brown's ID."""
+
+    season = load_season(SEASON)
+    data = SeasonData(tmp_path)
+    data.prior_dir.mkdir(parents=True)
+    (data.prior_dir / "prices_round_01.csv").write_text(
+        "rank,player,club,pos,price\n1,Anthony Brown,Besiktas,F,9.7\n2,Vitto Brown,Besiktas,F,7.0\n"
+        "3,Kevarrius Hayes,Partizan,C,8.0\n",
+        encoding="utf-8",
+    )
+    people = [
+        {"person": {"code": "009025", "name": "BROWN, ANTHONY"}, "club": {"code": "BES"}},
+        {"person": {"code": "007777", "name": "HAYES, KEVARRIUS JAMAL"}, "club": {"code": "PAR"}},
+    ]
+    (data.prior_dir / "people_E2026.json").write_text(json.dumps({"data": people}))
+    (data.prior_dir / "stats_E2025_acc.json").write_text(json.dumps({"players": []}))
+    data.join_prior(season)
+    codes = {r["name"]: r["code"] for r in json.loads((data.prior_dir / "joined.json").read_text())}
+    assert codes == {"Anthony Brown": "009025", "Vitto Brown": None, "Kevarrius Hayes": "007777"}

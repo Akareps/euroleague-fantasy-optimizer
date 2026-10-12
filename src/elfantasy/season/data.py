@@ -182,6 +182,16 @@ class SeasonData:
         def tokens(name: str) -> set[str]:
             return {t for t in normalise_name(name).split() if len(t) > 1}
 
+        # A partial-name match may not take an ID another player matched exactly
+        # (Vitto Brown is not on the preseason roster; "Brown" must not make him
+        # Anthony Brown), nor one an earlier partial match already took.
+        claimed = {
+            r["code"]
+            for row in prices
+            for r in roster
+            if r["club"] == season.clubs.get(row["club"], row["club"])
+            and normalise_name(r["name"]) == normalise_name(row["player"])
+        }
         out, unmatched = [], []
         for row in prices:
             club = season.clubs.get(row["club"], row["club"])
@@ -201,13 +211,14 @@ class SeasonData:
                     (
                         (len(tokens(row["player"]) & tokens(r["name"])), r)
                         for r in roster
-                        if r["club"] == club
+                        if r["club"] == club and r["code"] not in claimed
                     ),
                     key=lambda t: -t[0],
                 )
                 scored = [s for s in scored if s[0]]
                 if scored and (len(scored) == 1 or scored[0][0] > scored[1][0]):
                     cands = [scored[0][1]]
+                    claimed.add(scored[0][1]["code"])
             if not cands:
                 unmatched.append(f"{row['player']} ({club})")
                 rec["code"] = None

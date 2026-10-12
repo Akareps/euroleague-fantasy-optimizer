@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import contextlib
+import itertools
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -70,7 +71,13 @@ class RoundPlanner:
         self.gamma = gamma
         self.log = log
         self.round = int(projection["round"])
-        self.rounds = [int(r) for r in projection["rounds"]]
+        # Stop at a free-transfer window: holding a player past it is worth
+        # nothing (the squad can be rebuilt), though credits still carry over.
+        later = itertools.takewhile(
+            lambda r: not rules.unlimited_transfers_before(r),
+            (int(r) for r in projection["rounds"][1:]),
+        )
+        self.rounds = [self.round, *later]
         self.squad = list(private.squad) if private and private.squad else []
         self.coach = private.coach if private else None
         self.bank = private.bank if private and private.bank is not None else 0.0
