@@ -453,3 +453,37 @@ def test_turn_advice_respects_the_formation(sim):
     names = [sim.players[i].name for i in (g, c)]
     assert all(n in blocked and n not in allowed for n in names)
     assert all(sim.players[i].name in allowed for i in (f1, f2, f3, f4))
+
+
+def test_turn_advice_accounts_for_earlier_swaps(sim):
+    """In a 2-2-1, two forwards may each replace a guard -- but not both."""
+
+    from types import SimpleNamespace
+
+    from elfantasy.optimize.turns import TurnLineup
+    from elfantasy.report import turn_plan_steps
+
+    def first(pos, k, late=False):
+        return [i for i, p in enumerate(sim.players) if p.pos == pos and sim.late[i] == late][:k]
+
+    g1, g2 = first("G", 2)
+    f1, f2, f3 = first("F", 3)
+    (c,) = first("C", 1)
+    late1, late2 = first("F", 2, late=True)
+    lineup = TurnLineup(starters=(g1, g2, f1, f2, c), sixth=f3, captain=g1)
+    plan = SimpleNamespace(
+        sim=sim,
+        ids=[g1, g2, f1, f2, f3, c, late1, late2],
+        late_bench=lambda: [late1, late2],
+        evaluation=SimpleNamespace(lineup=lineup, promoted={}, captained={}),
+    )
+    name = {i: sim.players[i].name for i in (g1, g2, c, late1, late2)}
+    # The advice is given in order of expected points; the second one must
+    # allow for the first.
+    later = late2 if sim.E[late1] >= sim.E[late2] else late1
+    step = next(
+        s for s in turn_plan_steps(plan) if s.startswith(f"Before Turn 2: bring on {name[later]}")
+    )
+    assert f"{name[g1]} only if" in step and f"{name[g2]} only if" in step
+    assert "hasn't replaced" in step
+    assert name[c] in step.split("(not ")[1]  # never the only centre

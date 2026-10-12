@@ -8,6 +8,7 @@ successive swap actually buys you.
 
 from __future__ import annotations
 
+import itertools
 import math
 
 from rich.console import Console
@@ -409,14 +410,27 @@ def lineup_plan(plan, title: str = "Lineup") -> None:
 def turn_plan_steps(plan) -> list[str]:
     """What to do before the first game day and between game days, in words.
 
-    A bench player is only pointed at field players he can replace without
-    breaking the formation (the 6th-man spot always works) -- the same rule the
-    simulator applies.
+    Bench players are taken in order (game day, then expected points). Each is
+    pointed only at field players he can replace without breaking the
+    formation (the 6th-man spot always works), allowing for every swap the
+    instructions before his may already have made. The simulator applies the
+    same rule to its moves.
     """
 
     sim, ev = plan.sim, plan.evaluation
     lu = ev.lineup
     steps = []
+
+    def name(i: int) -> str:
+        return sim.players[i].name
+
+    def legal_after(swaps) -> bool:
+        starters = list(lu.starters)
+        for incoming, target in swaps:
+            if target in starters:  # the 6th man is outside the formation
+                starters[starters.index(target)] = incoming
+        return sim.legal(starters)
+
     late_bench = plan.late_bench()
     last = max(sim.turn[i] for i in plan.ids)
     forced = [i for i in (*lu.starters, lu.sixth) if i is not None and 0 < sim.turn[i] == last]
@@ -429,25 +443,52 @@ def turn_plan_steps(plan) -> list[str]:
                 f"earlier-day players at that position), so nobody can come on for them"
             )
         steps.append(note + ".")
+    field = [i for i in (*lu.starters, lu.sixth) if i is not None]
+    options: dict[int, list[int]] = {}  # bench player -> who he may replace
     for j in sorted(late_bench, key=lambda j: (sim.turn[j], -sim.E[j])):
-        played = [
-            i for i in (*lu.starters, lu.sixth) if i is not None and sim.turn[i] < sim.turn[j]
-        ]
-        legal = [
-            i
-            for i in played
-            if i == lu.sixth or sim.legal([j if s == i else s for s in lu.starters])
-        ]
-        if not legal:
+        earlier = list(options)
+        # Everything the earlier instructions may have done (legal outcomes only).
+        histories = []
+        for combo in itertools.product(*([None, *options[e]] for e in earlier)):
+            swaps = [(e, t) for e, t in zip(earlier, combo, strict=True) if t is not None]
+            taken = [t for _, t in swaps]
+            if len(taken) == len(set(taken)) and legal_after(swaps):
+                histories.append(swaps)
+        safe, never = [], []
+        unless: dict[int, list] = {}  # legal now, broken by some earlier swaps
+        only_after: dict[int, list] = {}  # illegal now, made legal by an earlier swap
+        for t in (i for i in field if sim.turn[i] < sim.turn[j]):
+            ok = [legal_after([*h, (j, t)]) for h in histories if t not in {x for _, x in h}]
+            if ok and all(ok):
+                safe.append(t)
+            elif not any(ok):
+                never.append(t)
+            elif legal_after([(j, t)]):
+                unless[t] = [(e, x) for e in earlier for x in options[e]
+                             if x != t and not legal_after([(e, x), (j, t)])]  # fmt: skip
+            else:
+                only_after[t] = [(e, x) for e in earlier for x in options[e]
+                                 if x != t and legal_after([(e, x), (j, t)])]  # fmt: skip
+        options[j] = [*safe, *unless, *only_after]
+        if not options[j]:
             continue
-        if legal == played:
+        if not (never or unless or only_after):
             whom = "the lowest-scoring field player who has already played"
         else:
-            blocked = ", ".join(sim.players[i].name for i in played if i not in legal)
-            whom = (
-                f"whichever of {', '.join(sim.players[i].name for i in legal)} scored lowest "
-                f"(not {blocked}: that swap would break the formation)"
+            notes = (
+                [f"not {', '.join(map(name, never))}: that would break the formation"]
+                if never
+                else []
             )
+            for t, cond in unless.items():
+                why = " and ".join(f"{name(e)} hasn't replaced {name(x)}" for e, x in cond)
+                notes.append(
+                    f"{name(t)} only if {why or 'the earlier swaps leave the formation legal'}"
+                )
+            for t, cond in only_after.items():
+                why = " or ".join(f"{name(e)} has replaced {name(x)}" for e, x in cond)
+                notes.append(f"{name(t)} only if {why or 'an earlier swap makes room'}")
+            whom = f"whichever of {', '.join(map(name, options[j]))} scored lowest ({'; '.join(notes)})"
         steps.append(
             f"Before Turn {sim.turn[j] + 1}: bring on {sim.players[j].name} for {whom}, if "
             f"that player scored under {sim.E[j]:.0f} (happens in "
