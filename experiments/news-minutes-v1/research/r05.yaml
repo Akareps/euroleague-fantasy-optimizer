@@ -1,0 +1,239 @@
+schema_version: 1
+experiment: news-minutes-v1
+round: 5
+# First reviewed collection, 12 October 2026. Dates without a clock use 00:00 UTC
+# for conservative freshness only; observation time governs historical eligibility.
+# These are evidence excerpts/annotations, not a comprehensive news feed.
+scope:
+  - {club: PAR, player: Tonye Jekiri, aliases: [Jekiri]}
+  - {club: ZAL, player: Azuolas Tubelis, aliases: [Tubelis, Ąžuolas Tubelis, Azoulas Tubelis]}
+  - {club: HTA, player: Elijah Bryant, aliases: [Elijah Bryant]}
+  - {club: PRS, player: Nadir Hifi, aliases: [Hifi]}
+  - {club: MAD, player: Theo Maledon, aliases: [Maledon]}
+  - {club: VIR, player: Aliou Diarra, aliases: [Diarra]}
+  - {club: BAR, player: Joel Parra, aliases: [Parra]}
+  - {club: PAN, player: Eleftherios Mantzoukas, aliases: [Mantzoukas, Lefteris Mantzoukas]}
+  - {club: MAD, player: Mikael Jantunen, aliases: [Jantunen]}
+  - {club: PAM, player: Mario Saint-Supery, aliases: [Saint-Supéry, Saint-Supery]}
+  - {club: MIL, player: Moses Wright, aliases: [Moses Wright]}
+  - {club: ASV, player: Jae Crowder, aliases: [Crowder]}
+  - {club: RED, player: Semi Ojeleye, aliases: [Ojeleye]}
+  - {club: VIR, player: Wendell Moore Jr., aliases: [Wendell Moore, Moore Jr.]}
+  - {club: PAR, player: Arijan Lakic, aliases: [Lakić, Lakic]}
+limitations:
+  - Scoped public-web search for the 15 held/app-priced candidate players; missing evidence is unknown, never confirmation of health.
+  - Coach statements, published interview excerpts, local reporting and a public forum were reviewed. Coverage is partial and multilingual attribution is manual.
+  - No authenticated X search was configured. One official X interview link was identified through a published embed, but its direct content could not be retrieved.
+  - No fresh player-specific minutes restriction or explicit rotation commitment was found in this collection. No video audio was automatically transcribed; SRT/VTT imports are supported.
+  - English lexical sentiment is a transparent diagnostic, not a trained multilingual sentiment model. Numerical mappings require prospective validation.
+sources:
+  - id: masiulis-r05
+    url: https://basketballsphere.com/zalgiris-fenerbahce-evroliga-izostanci/
+    source_type: sourced_reporter
+    club: ZAL
+    language: sr
+    published_at: '2026-10-12T00:00:00Z'
+    publication_precision: day
+    reviewed_at: '2026-10-12T21:08:03Z'
+    claims:
+      - id: tubelis-knee-r05
+        event_id: masiulis-20261012-pre-fenerbahce
+        club: ZAL
+        player: Azuolas Tubelis
+        game_id: E2026_46
+        speaker: Tomas Masiulis, quoted by Ognjen Popovic
+        excerpt: Azoulas Tubelis ima bolove u kolenu, zbog čega nije igrao na prethodnoj utakmici.
+        translation: Tubelis has knee pain and missed the previous game; Masiulis hopes he will be ready for Istanbul.
+        kind: doubtful
+        confidence: 0.92
+        time_scope: upcoming_fixture
+        already_in_inputs: true
+        reviewed: true
+        verification: manual_web_review
+      - id: williams-goss-no-travel-r05
+        event_id: masiulis-20261012-pre-fenerbahce
+        club: ZAL
+        player: Nigel Williams-Goss
+        game_id: E2026_46
+        speaker: Tomas Masiulis, quoted by Ognjen Popovic
+        excerpt: Nigel Williams-Goss neće putovati sa ekipom u Istanbul.
+        translation: Nigel Williams-Goss will not travel with the team to Istanbul.
+        kind: out
+        confidence: 0.98
+        time_scope: upcoming_fixture
+        already_in_inputs: true
+        reviewed: true
+        verification: manual_web_review
+  - id: valencia-domestic-preview
+    url: https://www.valenciabasket.com/complicado-reto-a-la-buena-dinamica-taronja-en-la-pista-del-barca
+    source_type: club
+    club: PAM
+    language: es
+    published_at: '2026-10-10T00:00:00Z'
+    publication_precision: day
+    reviewed_at: '2026-10-12T21:08:03Z'
+    claims:
+      - id: saint-supery-return-context
+        event_id: valencia-domestic-preview-20261010
+        club: PAM
+        player: Mario Saint-Supery
+        game_id: E2026_45
+        speaker: Valencia Basket club preview
+        excerpt: El equipo taronja cuenta con todos sus jugadores disponibles para este encuentro.
+        translation: All players are available for this game, referring to the October 11 domestic fixture.
+        kind: ready
+        confidence: 0.92
+        time_scope: prior_domestic_game
+        already_in_inputs: true
+        reviewed: true
+        verification: manual_web_review
+  - id: martinez-domestic-interview
+    url: https://www.realmadrid.com/es-ES/noticias/baloncesto/primer-equipo/ruedas-de-prensa/pedro-martinez-11-10-2026
+    source_type: club
+    club: MAD
+    language: es
+    published_at: '2026-10-11T00:00:00Z'
+    publication_precision: day
+    reviewed_at: '2026-10-12T21:08:03Z'
+    claims:
+      - id: madrid-broader-rotation-context
+        event_id: martinez-post-manresa-20261011
+        club: MAD
+        player: null
+        game_id: E2026_43
+        speaker: Pedro Martinez
+        excerpt: podemos contar con ellos con más asiduidad
+        translation: Martinez is pleased with less-used players and says the team could use them more often. He does not name a player or specify minutes.
+        kind: context
+        confidence: 0.95
+        time_scope: general_season
+        reviewed: true
+        verification: manual_web_review
+  - id: lakic-team-confidence
+    url: https://telesport.rs/2026/10/03/lakic-niko-ne-moze-da-brani-vasingtonu-da-slavi/
+    source_type: player
+    club: PAR
+    language: sr
+    published_at: '2026-10-03T00:00:00Z'
+    publication_precision: day
+    reviewed_at: '2026-10-12T21:08:03Z'
+    claims:
+      - id: lakic-confidence-context
+        event_id: lakic-post-bayern-20261003
+        club: PAR
+        player: Arijan Lakic
+        game_id: E2026_47
+        speaker: Arijan Lakic, interview reported by Telesport
+        excerpt: Vera koju imamo od početka. Mislim da verujemo jedni drugima
+        translation: We have believed from the beginning and trust one another.
+        kind: context
+        confidence: 0.95
+        time_scope: past_game
+        reviewed: true
+        verification: manual_web_review
+  - id: asvel-domestic-recap
+    url: https://www.lyonmag.com/article/154342/l-asvel-triomphe-a-l-astroballe-face-a-roanne-tony-parker-remporte-le-duel-des-freres
+    source_type: reporter_opinion
+    club: ASV
+    language: fr
+    published_at: '2026-10-11T19:20:00Z'
+    reviewed_at: '2026-10-12T21:08:03Z'
+    claims:
+      - id: crowder-domestic-context
+        event_id: asvel-roanne-20261011
+        club: ASV
+        player: Jae Crowder
+        game_id: E2026_41
+        speaker: Romain Pastorino, LyonMag recap
+        excerpt: Jae Crowder a atteint les dix unités.
+        translation: Crowder scored ten points in the domestic game; no upcoming minutes commitment is stated.
+        kind: context
+        confidence: 0.95
+        time_scope: past_game
+        reviewed: true
+        verification: manual_web_review
+  - id: milano-domestic-recap
+    url: https://www.ilgiorno.it/milano/sport/olimpia/olimpia-milano-treviso-20417a16
+    source_type: reporter_opinion
+    club: MIL
+    language: it
+    published_at: '2026-10-11T00:00:00Z'
+    publication_precision: day
+    reviewed_at: '2026-10-12T21:08:03Z'
+    claims:
+      - id: wright-domestic-context
+        event_id: milano-treviso-20261011
+        club: MIL
+        player: Moses Wright
+        game_id: E2026_43
+        speaker: Sandro Pugliese, Il Giorno recap
+        excerpt: un Wright da 10 punti
+        translation: Wright scored ten points in the opening quarter. This describes a past performance.
+        kind: context
+        confidence: 0.95
+        time_scope: past_game
+        reviewed: true
+        verification: manual_web_review
+  - id: euroleague-forum-r04
+    url: https://www.reddit.com/r/Euroleague/comments/1x1w3qd/post_match_thread_barcelona_zalgiris_euroleague/
+    source_type: forum
+    club: ZAL
+    language: en
+    published_at: '2026-10-09T21:00:00Z'
+    publication_precision: approximate_postgame
+    reviewed_at: '2026-10-12T21:08:03Z'
+    claims:
+      - id: forum-grigonis-role-opinion
+        event_id: reddit-bar-zal-r04-grigonis-opinion
+        club: ZAL
+        player: Marius Grigonis
+        game_id: E2026_46
+        speaker: Reddit commenter
+        excerpt: So nice to watch Grigonis get so many playing minutes compared to the attrocius misuse by Ataman.
+        translation: A fan praises Grigonis getting more minutes in the completed game; no future coach commitment.
+        kind: context
+        confidence: 0.4
+        time_scope: past_game
+        reviewed: true
+        verification: manual_web_review
+  - id: mantzoukas-published-interview
+    url: https://www.gazzetta.gr/basketball/euroleague/2573757/mantzoykas-o-kosmos-einai-poly-simantikos-gia-emas
+    source_type: player
+    club: PAN
+    language: el
+    published_at: '2026-10-01T17:37:00Z'
+    reviewed_at: '2026-10-12T21:08:03Z'
+    claims:
+      - id: mantzoukas-mindset-context
+        event_id: paobc-mantzoukas-interview-20261001
+        club: PAN
+        player: Eleftherios Mantzoukas
+        game_id: E2026_47
+        speaker: Eleftherios Mantzoukas
+        excerpt: Είμαι χαρούμενος που βοήθησα την ομάδα χθες.
+        translation: I am happy that I helped the team yesterday.
+        kind: context
+        confidence: 0.95
+        time_scope: past_game
+        reviewed: true
+        verification: manual_web_review
+  - id: paobc-x-interview-link
+    url: https://x.com/Paobcgr/status/2105697028919685239
+    source_type: club
+    club: PAN
+    language: en
+    published_at: '2026-10-01T00:00:00Z'
+    publication_precision: day
+    claims:
+      - id: mantzoukas-x-unretrieved
+        event_id: paobc-mantzoukas-interview-20261001
+        club: PAN
+        player: Eleftherios Mantzoukas
+        game_id: E2026_47
+        speaker: Panathinaikos BC official X account
+        excerpt: Lefteris Mantzoukas talks about the team’s progress
+        translation: Embedded caption describes a player interview; direct X content not retrieved.
+        kind: context
+        confidence: 0.3
+        time_scope: past_game
+        reviewed: false

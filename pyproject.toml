@@ -73,6 +73,7 @@ ignore = ["E501"]
 "src/elfantasy/season/cli.py" = ["B008"]
 "src/elfantasy/experiments/cli.py" = ["B008"]
 "src/elfantasy/experiments/hierarchical_cli.py" = ["B008"]
+"src/elfantasy/experiments/news_cli.py" = ["B008"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

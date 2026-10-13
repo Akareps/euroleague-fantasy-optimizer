@@ -385,6 +385,12 @@ fits minutes, shooting opportunities/efficiency and PIR components using two
 historical seasons. `elfantasy experiment hierarchical ...` provides chronological
 evaluation and three-model comparisons; it does not replace either existing model.
 
+An opt-in [news and minutes experiment](experiments/news-minutes-v1/README.md)
+archives reviewed interviews, local reporting and forum evidence, then tests
+specific availability/rotation statements on top of the hierarchical model.
+`elfantasy experiment news ...` keeps its forecasts/plans separate; lexical
+sentiment is diagnostic and generic praise never creates a minutes boost.
+
 ```bash
 pip install -e ".[dev]"
 pytest

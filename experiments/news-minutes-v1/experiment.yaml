@@ -1,0 +1,12 @@
+# Frozen heuristic mappings, NOT trained/calibrated sentiment effects.
+# General sentiment is diagnostic only; specific reviewed evidence is required.
+max_age_hours: 96.0
+min_confidence: 0.65
+min_effective_weight: 0.55
+half_life_hours: 72.0
+max_directional_shift: 2.0
+doubtful_probability: 0.7
+ready_probability: 0.97
+added_minute_sd: 2.0
+explicit_minutes_sd: 4.0
+redistribution_fraction: 0.5

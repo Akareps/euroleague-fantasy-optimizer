@@ -13,6 +13,7 @@ from rich.table import Table
 from elfantasy import report
 from elfantasy.config import REPO_ROOT
 from elfantasy.experiments.hierarchical_cli import app as hierarchical_app
+from elfantasy.experiments.news_cli import app as news_app
 from elfantasy.experiments.oddspapi import (
     EXPERIMENT,
     OddsPapiClient,
@@ -36,6 +37,7 @@ app = typer.Typer(no_args_is_help=True, help="Opt-in experiments with separate o
 odds_app = typer.Typer(no_args_is_help=True, help="OddsPapi v1: conservative player-prop blend.")
 app.add_typer(odds_app, name="oddspapi")
 app.add_typer(hierarchical_app, name="hierarchical")
+app.add_typer(news_app, name="news")
 SettingsOpt = typer.Option(None, "--settings", help="Experiment YAML (independent of season.yaml).")
 SnapshotOpt = typer.Option(
     None, "--snapshot", help="Saved OddsPapi snapshot; missing = own model only."
