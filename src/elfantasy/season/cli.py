@@ -248,19 +248,21 @@ def backtest(
         _fail(exc)
     table = Table(title="Chronological backtest", header_style="bold")
     for col in ("Round", "n", "Model RMSE", "Price RMSE", "Model rho", "Price rho",
-                f"Top-{top} model", f"Top-{top} price", f"Top-{top} hindsight"):  # fmt: skip
+                f"Top-{top} model", f"Top-{top} price", f"Top-{top} mix", f"Top-{top} hindsight"):  # fmt: skip
         table.add_column(col, justify="right")
     for s in scores:
         p = s.price
         table.add_row(
             f"{s.round}{'*' if s.tuned_on else ''}", str(s.n), f"{s.model.rmse:.2f}",
             f"{p.rmse:.2f}" if p else "-", f"{s.model.rho:.3f}", f"{p.rho:.3f}" if p else "-",
-            f"{s.model.top:.1f}", f"{p.top:.1f}" if p else "-", f"{s.hindsight_top:.1f}",
+            f"{s.model.top:.1f}", f"{p.top:.1f}" if p else "-",
+            f"{s.blend.top:.1f}" if s.blend else "-", f"{s.hindsight_top:.1f}",
         )  # fmt: skip
     report.console.print(table)
     report.console.print(
         "[dim]Model = calibrated on earlier rounds only; price = actual ~ price fitted on earlier "
-        "rounds (none for round 1). * = a round used to choose the evidence weights.[/]"
+        "rounds (none for round 1); mix = the two blended by price_blend. * = a round used to choose the "
+        "evidence weights.[/]"
     )
     if save:
         save.write_text(json.dumps([s.__dict__ | {"model": s.model.__dict__, "raw": s.raw.__dict__,

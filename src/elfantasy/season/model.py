@@ -48,6 +48,7 @@ from elfantasy.season.inputs import (
     RoundInputs,
     SeasonInputs,
     key,
+    load_private,
 )
 
 SIGMA = 11.5  # SD of EuroLeague game margin around the spread
@@ -274,10 +275,11 @@ def update_with_evidence(
         k = _pkey(p)
         mins, pirs, seen = [], [], {}
         for rnd in sorted(boxes):
-            if k in injured.get(rnd, set()):
+            ln = boxes[rnd].get(p.get("code"))
+            # Listed as injured only excuses an absence: a game he did play counts.
+            if k in injured.get(rnd, set()) and not (ln and ln["minutes"] > 0):
                 continue
             wt = weights.recency ** (rnd - 1)
-            ln = boxes[rnd].get(p.get("code"))
             if ln is None:
                 mins.append((wt, 0.0))  # not in the 12: a coach's decision
                 continue
@@ -540,13 +542,27 @@ def coach_price_change(points: float, price: float) -> float:
     return round(-0.08 + 0.0246 * points - 0.012 * price, 1)
 
 
-def estimate_prices(players, coaches, target, data, season, rules, games, private=None):
-    """Prices for ``target``: the latest published list at or before it plus
-    each later round's fitted change; the app's prices where given."""
+def estimate_prices(players, coaches, target, data, season, rules, games, private=None, known=None):
+    """Prices for ``target``: each player's latest known price at or before it
+    (a published list, or app prices recorded for an earlier round in
+    ``known``) plus each later round's fitted change; the app's prices for
+    ``target`` itself where given."""
 
     lists = data.price_lists(season)
-    base_round = max([1] + [r for r in lists if r <= target])
-    rounds = range(base_round, target)
+    for r, prices in (known or {}).items():
+        if r < target:
+            lists[r] = {**lists.get(r, {}), **prices}
+    given = private.prices if private else {}
+    start = {}
+    for x in players + coaches:
+        if _pkey(x) in given:
+            continue
+        base, price = 1, x["price"]  # the opening price
+        for r in sorted(lists):
+            if r <= target and _pkey(x) in lists[r]:
+                base, price = r, lists[r][_pkey(x)]
+        start[id(x)] = (base, price)
+    rounds = range(min((b for b, _ in start.values()), default=target), target)
     boxes = data.boxes(rounds) if rounds else {}
     margin = {}
     for g in games.values():
@@ -556,8 +572,12 @@ def estimate_prices(players, coaches, target, data, season, rules, games, privat
             margin[(g["round"], g["road"]["club"]["code"])] = -d
     for x in players + coaches:
         k = _pkey(x)
-        price = lists.get(base_round, {}).get(k, x["price"])  # round 1: the opening price
-        for rnd in rounds:
+        if k in given:
+            x["price_estimated"] = None
+            x["price"] = given[k]
+            continue
+        base, price = start[id(x)]
+        for rnd in range(base, target):
             if x in coaches:
                 price = round(
                     price + coach_price_change(coach_points(margin[(rnd, x["club"])]), price), 1
@@ -569,8 +589,7 @@ def estimate_prices(players, coaches, target, data, season, rules, games, privat
                     price_change(ln["pir"] if played else 0.0, price, rules, played=played)
                 )
                 price = round(price + change, 1)
-        x["price_estimated"] = price
-        x["price"] = private.prices.get(k, price) if private else price
+        x["price_estimated"] = x["price"] = price
 
 
 # ===================================================================== assembly
@@ -656,10 +675,21 @@ class SeasonModel:
         """Projections for ``target`` and the following rounds of the horizon."""
 
         players, coaches, fit_info = self.players_before(target)
+        known = {r: q.prices for r in range(1, target) if (q := load_private(self.season.root, r))}
         estimate_prices(
-            players, coaches, target, self.data, self.season, self.rules, self.games, private
+            players, coaches, target, self.data, self.season, self.rules, self.games, private, known
         )
-        cal = self.calibration(target) if cal is None else cal
+        past = {r: self.reproject(r) for r in range(1, target)}
+        cal = self.calibration(target, past) if cal is None else cal
+        # Price-implied forecast (actual ~ a + b * price on every earlier round),
+        # blended with the model: the game's prices are a forecast of their own.
+        w = self.season.price_blend
+        rows = [x for r in past.values() for x in r]
+        b, a = (
+            np.polyfit([x["price"] for x in rows], [x["actual"] for x in rows], 1)
+            if rows
+            else (0, 0)
+        )
         rounds = [target + i for i in range(self.season.horizon)]
         for x in players + coaches:
             x["proj"] = {}
@@ -674,11 +704,15 @@ class SeasonModel:
                 if not r:
                     continue
                 raw = r["ev"]
-                ev = calibrate(cal, prior_group(p), raw) * self.season.eye_multiplier(
+                model_ev = calibrate(cal, prior_group(p), raw)
+                # The price half knows nothing of injuries: scale it by P(plays).
+                price_ev = max(a + b * p["price"], 0.0) * r["play"] / HEALTHY if rows else model_ev
+                ev = (w * model_ev + (1 - w) * price_ev) * self.season.eye_multiplier(
                     _pkey(p), target
                 )
                 scale = ev / raw if raw > 0 else 1.0
-                p["proj"][str(rnd)] = {**r, "ev": ev, "raw_ev": raw, "if_plays": r["if_plays"] * scale,
+                p["proj"][str(rnd)] = {**r, "ev": ev, "raw_ev": raw, "model_ev": model_ev,
+                                       "price_ev": price_ev, "if_plays": r["if_plays"] * scale,
                                        "turn": days.index(r["date"][:10])}  # fmt: skip
             for c in coaches:
                 m = next(

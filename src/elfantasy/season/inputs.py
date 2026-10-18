@@ -76,6 +76,7 @@ class SeasonInputs:
     evidence: EvidenceWeights = field(default_factory=EvidenceWeights)
     calibration: CalibrationSettings = field(default_factory=CalibrationSettings)
     tuned_on: tuple[int, ...] = ()  # rounds looked at when choosing the evidence weights
+    price_blend: float = 1.0  # weight on the model; the rest on a price-implied forecast
 
     @property
     def previous_code(self) -> str:
@@ -117,6 +118,8 @@ class PrivateInputs:
     bank: float | None
     prices: dict[Key, float]
     plans: dict[str, tuple[list[str], str | None]]
+    budget: float | None = None  # total credits for a rebuild without a squad (team value + bank)
+    exclude: list[str] = field(default_factory=list)  # never buy these (your own judgement)
 
 
 # ---------------------------------------------------------------- locating
@@ -191,6 +194,7 @@ def load_season(root: Path | None = None) -> SeasonInputs:
             or CalibrationSettings().tiers,
         ),
         tuned_on=tuple(int(x) for x in model.get("tuned_on") or ()),
+        price_blend=float(model.get("price_blend", 1.0)),
     )
 
 
@@ -244,4 +248,6 @@ def load_private(root: Path, round_no: int) -> PrivateInputs | None:
             str(name): ([str(n) for n in p.get("players") or []], p.get("coach"))
             for name, p in (d.get("plans") or {}).items()
         },
+        budget=None if d.get("budget") is None else float(d["budget"]),
+        exclude=[str(n) for n in d.get("exclude") or []],
     )

@@ -81,6 +81,7 @@ class RoundPlanner:
         self.squad = list(private.squad) if private and private.squad else []
         self.coach = private.coach if private else None
         self.bank = private.bank if private and private.bank is not None else 0.0
+        self.exclude = set(private.exclude) if private else set()
         self.lp, self.lc, self.sp, self.sc = self._inputs()
 
     # ---------------------------------------------------------------- inputs
@@ -94,7 +95,7 @@ class RoundPlanner:
         out_now = []
         for p in self.proj["players"]:
             proj = p["proj"]
-            if first not in proj:
+            if first not in proj or (p["name"] in self.exclude and p["name"] not in self.squad):
                 continue
             ev = {r: proj[str(r)]["ev"] for r in self.rounds if str(r) in proj}
             r0 = proj[first]
@@ -127,7 +128,9 @@ class RoundPlanner:
 
     def budget(self) -> float:
         if not self.squad:
-            return self.rules.budget
+            return (
+                self.private.budget if self.private and self.private.budget else self.rules.budget
+            )
         missing = [n for n in self.squad if n not in {p.player_id for p in self.lp}]
         if missing:
             raise ValueError(f"not in the projections (check names): {', '.join(missing)}")
@@ -141,10 +144,8 @@ class RoundPlanner:
             base = optimise_lineup(self.lp, self.lc, self.rules, **kw, current=self._current())
             richer = optimise_lineup(self.lp, self.lc, self.rules, **kw, current=self._current(1.0))
         else:
-            base = optimise_lineup(self.lp, self.lc, self.rules, **kw, budget=self.rules.budget)
-            richer = optimise_lineup(
-                self.lp, self.lc, self.rules, **kw, budget=self.rules.budget + 1
-            )
+            base = optimise_lineup(self.lp, self.lc, self.rules, **kw, budget=self.budget())
+            richer = optimise_lineup(self.lp, self.lc, self.rules, **kw, budget=self.budget() + 1)
         return max(richer.objective - base.objective, 0.0), base
 
     def title(self) -> str:

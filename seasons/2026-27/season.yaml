@@ -106,6 +106,11 @@ model:
     n_rate_new: 180.0
     recency: 1.3       # each newer round counts 1.3x the one before
   tuned_on: [2, 3]     # rounds used to choose the evidence weights (backtest flags them)
+  # Weight on the model vs a price-implied forecast (actual ~ price, fitted on every
+  # earlier round). Set to 0.5 on 18 Oct: on Rounds 4-6, untouched by tuning, the
+  # model's top picks did not beat price-based picks (13.0 vs 13.2 per player per
+  # round) and a fixed 50/50 mix beat both (13.4) with the lowest error. 1.0 = model only.
+  price_blend: 0.5
   calibration:        # additive group x tier corrections, empirical-Bayes shrunk
     prior_sd: 1.5
     cv: 0.634

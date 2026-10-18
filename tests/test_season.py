@@ -53,7 +53,7 @@ class TestCommittedInputs:
         assert rounds[:4] == [1, 2, 3, 4]
         for n in rounds:
             r = load_round(SEASON, n)
-            assert r.moneylines.get(n), f"round {n} has no lines for itself"
+            assert r.rating_lines(), f"round {n} has no lines to rate the teams"
             assert all(len(p) == 3 for p in r.availability.values())
 
     def test_names_are_normalised(self):
@@ -418,3 +418,31 @@ def test_a_partial_name_match_cannot_take_another_players_id(tmp_path):
     data.join_prior(season)
     codes = {r["name"]: r["code"] for r in json.loads((data.prior_dir / "joined.json").read_text())}
     assert codes == {"Anthony Brown": "009025", "Vitto Brown": None, "Kevarrius Hayes": "007777"}
+
+
+def test_a_game_played_counts_even_if_he_was_listed_injured():
+    p = _player()
+    injured = {1: {key("AAA", "X")}}
+    update_with_evidence(
+        [p], {"g": _game("g", 1, 2)}, {1: {"1": _line("g", 30.0, 20.0)}}, injured, W
+    )
+    assert p["base_min"] == pytest.approx((0.5 * 20 + 30) / 1.5)
+
+
+def test_prices_chain_from_the_latest_app_price(tmp_path, rules):
+    """An app price recorded in an earlier round beats the older public list."""
+
+    season = load_season(SEASON)
+    data = SeasonData(tmp_path)
+    (tmp_path / "prices").mkdir()
+    (tmp_path / "prices" / "round_02.csv").write_text(
+        "rank,player,club,pos,price\n1,Xavier Lowe,Real Madrid,G,10.0\n", encoding="utf-8"
+    )
+    (tmp_path / "boxes").mkdir()
+    (tmp_path / "boxes" / "round_03.json").write_text(
+        json.dumps([{"player_id": "1", "game_id": "g3", "minutes": 30.0, "pir": 21.0}])
+    )
+    p = {"name": "Xavier Lowe", "club": "MAD", "pos": "G", "code": "1", "price": 9.0}
+    known = {3: {key("MAD", "Xavier Lowe"): 12.0}}
+    estimate_prices([p], [], 4, data, season, rules, {}, None, known)
+    assert p["price"] == pytest.approx(12.4)  # 12.0 in the app before Round 3, +0.4 for 21 PIR

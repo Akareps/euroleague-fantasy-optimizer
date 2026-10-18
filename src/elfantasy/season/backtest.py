@@ -18,7 +18,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.stats import spearmanr
 
-from elfantasy.season.model import SeasonModel, calibrate, fit_calibration
+from elfantasy.season.model import HEALTHY, SeasonModel, calibrate, fit_calibration
 
 
 @dataclass
@@ -38,6 +38,7 @@ class RoundScore:
     price: Score | None  # actual ~ price, fitted on earlier rounds
     hindsight_top: float
     tuned_on: bool
+    blend: Score | None = None  # model and price mixed by season.yaml's price_blend
 
 
 def _score(pred, act, k) -> Score:
@@ -66,10 +67,17 @@ def run_backtest(
         act = [x["actual"] for x in test]
         raw = [x["ev"] for x in test]
         calibrated = [calibrate(cal, x["group"], x["ev"]) for x in test]
-        price = None
+        price = blend = None
         if earlier:
             b, a = np.polyfit([x["price"] for x in earlier], [x["actual"] for x in earlier], 1)
-            price = _score([a + b * x["price"] for x in test], act, top_k)
+            by_price = [a + b * x["price"] for x in test]
+            price = _score(by_price, act, top_k)
+            w = model.season.price_blend
+            mixed = [
+                w * m + (1 - w) * max(q, 0.0) * x["play"] / HEALTHY
+                for m, q, x in zip(calibrated, by_price, test, strict=True)
+            ]
+            blend = _score(mixed, act, top_k)
         out.append(
             RoundScore(
                 round=r,
@@ -77,6 +85,7 @@ def run_backtest(
                 model=_score(calibrated, act, top_k),
                 raw=_score(raw, act, top_k),
                 price=price,
+                blend=blend,
                 hindsight_top=float(np.sort(act)[::-1][:top_k].mean()),
                 tuned_on=r in model.season.tuned_on,
             )
