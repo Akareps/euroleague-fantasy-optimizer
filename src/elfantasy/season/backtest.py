@@ -18,7 +18,14 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.stats import spearmanr
 
-from elfantasy.season.model import HEALTHY, SeasonModel, calibrate, fit_calibration
+from elfantasy.season.model import (
+    HEALTHY,
+    SeasonModel,
+    calibrate,
+    fit_calibration,
+    points_ratio,
+    team_points,
+)
 
 
 @dataclass
@@ -66,7 +73,18 @@ def run_backtest(
         test = rows[r]
         act = [x["actual"] for x in test]
         raw = [x["ev"] for x in test]
-        calibrated = [calibrate(cal, x["group"], x["ev"]) for x in test]
+        # The expected-points adjustment uses team averages (no saved over/under lines).
+        teams, league = team_points(model.games, r, model.season.team_points_prior_games)
+        k = model.season.team_points_weight
+        calibrated = [
+            calibrate(cal, x["group"], x["ev"])
+            * (
+                1
+                + k
+                * (points_ratio(x["club"], x["opp"], x["home"], x["margin"], {}, teams, league) - 1)
+            )
+            for x in test
+        ]
         price = blend = None
         if earlier:
             b, a = np.polyfit([x["price"] for x in earlier], [x["actual"] for x in earlier], 1)

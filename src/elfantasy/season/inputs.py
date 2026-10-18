@@ -77,6 +77,8 @@ class SeasonInputs:
     calibration: CalibrationSettings = field(default_factory=CalibrationSettings)
     tuned_on: tuple[int, ...] = ()  # rounds looked at when choosing the evidence weights
     price_blend: float = 1.0  # weight on the model; the rest on a price-implied forecast
+    team_points_weight: float = 0.0  # scale by the team's expected points in the game (0 = off)
+    team_points_prior_games: float = 3.0  # pseudo-games of league average behind team averages
 
     @property
     def previous_code(self) -> str:
@@ -94,6 +96,9 @@ class RoundInputs:
     moneylines: dict[int, dict[tuple[str, str], tuple[float, float]]]  # round -> (home, away)
     injured_out: set[Key] | None  # filled after the round; None = not recorded yet
     minutes_expert: dict[Key, float]  # stated roles from this round on
+    totals: dict[int, dict[tuple[str, str], float]] = field(
+        default_factory=dict
+    )  # over/under lines
 
     def missed_injured(self) -> set[Key]:
         """Who missed this round through injury (or similar), so that their
@@ -195,6 +200,8 @@ def load_season(root: Path | None = None) -> SeasonInputs:
         ),
         tuned_on=tuple(int(x) for x in model.get("tuned_on") or ()),
         price_blend=float(model.get("price_blend", 1.0)),
+        team_points_weight=float((model.get("team_points") or {}).get("weight", 0.0)),
+        team_points_prior_games=float((model.get("team_points") or {}).get("prior_games", 3.0)),
     )
 
 
@@ -220,6 +227,12 @@ def load_round(root: Path, round_no: int) -> RoundInputs:
         for fixture, (home_price, away_price) in games.items():
             home, away = (s.strip() for s in str(fixture).split("-"))
             lines[int(rnd)][(home, away)] = (float(home_price), float(away_price))
+    totals: dict[int, dict[tuple[str, str], float]] = {}
+    for rnd, games in (d.get("totals") or {}).items():
+        totals[int(rnd)] = {
+            tuple(s.strip() for s in str(fixture).split("-")): float(points)
+            for fixture, points in games.items()
+        }
     out = d.get("injured_out")
     return RoundInputs(
         number=round_no,
@@ -231,6 +244,7 @@ def load_round(root: Path, round_no: int) -> RoundInputs:
         minutes_expert={
             k: float(v) for k, v in _players(d.get("minutes_expert"), "minutes").items()
         },
+        totals=totals,
     )
 
 

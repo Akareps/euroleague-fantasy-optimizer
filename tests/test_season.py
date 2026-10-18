@@ -446,3 +446,19 @@ def test_prices_chain_from_the_latest_app_price(tmp_path, rules):
     known = {3: {key("MAD", "Xavier Lowe"): 12.0}}
     estimate_prices([p], [], 4, data, season, rules, {}, None, known)
     assert p["price"] == pytest.approx(12.4)  # 12.0 in the app before Round 3, +0.4 for 21 PIR
+
+
+def test_team_points_shrink_towards_the_league():
+    from elfantasy.season.model import points_ratio, team_points
+
+    games = {"g": _game("g", 1, 20)}  # AAA 100 - 80 BBB
+    teams, league = team_points(games, 2, prior_games=3.0)
+    assert league == 90.0
+    assert teams["AAA"] == pytest.approx(((100 + 3 * 90) / 4, (80 + 3 * 90) / 4))
+    # AAA scores well and BBB concedes a lot: AAA expects more than a league game.
+    assert points_ratio("AAA", "BBB", True, 5.0, {}, teams, league) > 1.0
+    # A market total overrides the averages: half the total plus half the margin.
+    assert points_ratio(
+        "AAA", "BBB", True, 6.0, {("AAA", "BBB"): 160.0}, teams, league
+    ) == pytest.approx(83 / 90)
+    assert points_ratio("AAA", "BBB", True, 0.0, {}, {}, None) == 1.0  # no games yet

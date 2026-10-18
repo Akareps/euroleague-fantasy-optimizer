@@ -111,6 +111,14 @@ model:
   # model's top picks did not beat price-based picks (13.0 vs 13.2 per player per
   # round) and a fixed 50/50 mix beat both (13.4) with the lowest error. 1.0 = model only.
   price_blend: 0.5
+  # Scale each player by his team's expected points in the game over a league-average
+  # game: (points scored + opponent's points allowed so far) / 2, shrunk with
+  # `prior_games` pseudo-games of league average, or the market's over/under line
+  # (round file `totals:`) where there is one. Added 18 Oct: on Rounds 3-6 the full
+  # weight raised top-40 picks from 13.54 to 13.82 points with slightly lower error.
+  team_points:
+    weight: 1.0
+    prior_games: 3
   calibration:        # additive group x tier corrections, empirical-Bayes shrunk
     prior_sd: 1.5
     cv: 0.634

@@ -592,6 +592,47 @@ def estimate_prices(players, coaches, target, data, season, rules, games, privat
         x["price_estimated"] = x["price"] = price
 
 
+# ================================================================ team points
+def team_points(games: dict[str, dict], before: int, prior_games: float):
+    """Points scored and allowed per game by each club in rounds before
+    ``before``, shrunk towards the league average with ``prior_games``
+    pseudo-games: (club -> (for, against), league average), or ({}, None)."""
+
+    pf: dict[str, float] = defaultdict(float)
+    pa: dict[str, float] = defaultdict(float)
+    n: dict[str, int] = defaultdict(int)
+    for g in games.values():
+        if g["round"] < before and g["played"]:
+            for us, them in (("local", "road"), ("road", "local")):
+                club = g[us]["club"]["code"]
+                pf[club] += g[us]["score"]
+                pa[club] += g[them]["score"]
+                n[club] += 1
+    if not n:
+        return {}, None
+    league = sum(pf.values()) / sum(n.values())
+    k = prior_games
+    return {
+        c: ((pf[c] + k * league) / (n[c] + k), (pa[c] + k * league) / (n[c] + k)) for c in n
+    }, league
+
+
+def points_ratio(club, opp, home, margin, totals, teams, league) -> float:
+    """The club's expected points in this game over a league-average game:
+    from the market's over/under line when there is one (half the total plus
+    half the expected margin), else from its scoring and the opponent's
+    defence so far."""
+
+    if not league:
+        return 1.0
+    total = totals.get((club, opp) if home else (opp, club))
+    if total:
+        expected = total / 2 + margin / 2
+    else:
+        expected = (teams.get(club, (league, league))[0] + teams.get(opp, (league, league))[1]) / 2
+    return expected / league
+
+
 # ===================================================================== assembly
 class SeasonModel:
     """Projects any round of the season from its inputs, as known before it."""
@@ -660,7 +701,8 @@ class SeasonModel:
                 continue
             rows.append({"name": p["name"], "club": p["club"], "pos": p["pos"], "group": prior_group(p),
                          "price": p["price"], "ev": r["ev"], "min_p": r["min"], "play": r["play"],
-                         "actual": act.get(p["code"], 0.0), "round": round_no})  # fmt: skip
+                         "actual": act.get(p["code"], 0.0), "round": round_no, "opp": r["opp"],
+                         "home": r["home"], "margin": r["margin"]})  # fmt: skip
         return rows
 
     def calibration(self, target: int, rows_by_round: dict[int, list[dict]] | None = None):
@@ -684,6 +726,8 @@ class SeasonModel:
         # Price-implied forecast (actual ~ a + b * price on every earlier round),
         # blended with the model: the game's prices are a forecast of their own.
         w = self.season.price_blend
+        k_pts = self.season.team_points_weight
+        teams, league = team_points(self.games, target, self.season.team_points_prior_games)
         rows = [x for r in past.values() for x in r]
         b, a = (
             np.polyfit([x["price"] for x in rows], [x["actual"] for x in rows], 1)
@@ -704,7 +748,9 @@ class SeasonModel:
                 if not r:
                     continue
                 raw = r["ev"]
-                model_ev = calibrate(cal, prior_group(p), raw)
+                ratio = points_ratio(p["club"], r["opp"], r["home"], r["margin"],
+                                     self.round_inputs(target).totals.get(rnd, {}), teams, league)  # fmt: skip
+                model_ev = calibrate(cal, prior_group(p), raw) * (1 + k_pts * (ratio - 1))
                 # The price half knows nothing of injuries: scale it by P(plays).
                 price_ev = max(a + b * p["price"], 0.0) * r["play"] / HEALTHY if rows else model_ev
                 ev = (w * model_ev + (1 - w) * price_ev) * self.season.eye_multiplier(
