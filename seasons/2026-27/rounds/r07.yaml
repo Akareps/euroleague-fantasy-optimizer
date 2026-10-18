@@ -1,0 +1,87 @@
+# Round 7 (21-23 Oct 2026), after the free-transfer window. FIRST PASS 18 Oct:
+# Basketball Sphere tracker (17 Oct 16:08), RotoWire (16 Oct), the user's report that Nunn and
+# Sloukas played in the Greek league on 18 Oct. No Round 7 lines yet: team ratings use the
+# Round 5-6 lines below. Refresh before the deadline.
+round: 7
+
+availability:  # P(plays) in [7, 8, 9]
+  - {club: ASV, player: Mathis Dossou-Yovo, p: [0.0, 0.0, 0.0]}
+  - {club: ASV, player: TyTy Washington, p: [0.5, 0.6, 0.7]}
+  - {club: BAR, player: Josh Nebo, p: [0.97, 0.97, 0.97], note: "returned in R4"}
+  - {club: BAR, player: Justin Minaya, p: [0.7, 0.9, 0.95], note: "day to day (adductor)"}
+  - {club: BAR, player: Tosan Evbuomwan, p: [0.97, 0.97, 0.97], note: "returned in R4"}
+  - {club: BAR, player: Umoja Gibson, p: [0.95, 0.97, 0.97], note: "left R4 early; domestic preview doubtful"}
+  - {club: BAR, player: Yoan Makoundou, p: [0.2, 0.3, 0.4]}
+  - {club: BES, player: DaQuan Jeffries, p: [0.0, 0.0, 0.0]}
+  - {club: BES, player: Mady Sissoko, p: [0.0, 0.0, 0.0]}
+  - {club: BES, player: Vitto Brown, p: [0.0, 0.0, 0.0], note: "stale price-list entry; official E2026 roster has Anthony Brown; shared ID is an incorrect join"}
+  - {club: DUB, player: Dzanan Musa, p: [0.6, 0.7, 0.8], note: "knee; conflicting out/uncertain reports"}
+  - {club: DUB, player: Justin Anderson, p: [0.4, 0.5, 0.6]}
+  - {club: DUB, player: Mam Jaiteh, p: [0.0, 0.0, 0.0]}
+  - {club: HTA, player: Amir Coffey, p: [0.4, 0.5, 0.6]}
+  - {club: HTA, player: Bar Timor, p: [0.9, 0.97, 0.97], note: "13 Oct tracker - did not travel"}
+  - {club: HTA, player: Tamir Blatt, p: [0.0, 0.0, 0.0], note: "outside squad"}
+  - {club: HTA, player: Tomer Ginat, p: [0.6, 0.7, 0.8]}
+  - {club: HTA, player: Tyler Ennis, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Georgios Papagiannis, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Isaia Cordinier, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Mike James, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: PJ Dozier, p: [0.75, 0.9, 0.95], note: "day to day (back)"}
+  - {club: MAD, player: Gabriel Deck, p: [0.0, 0.0, 0.0]}
+  - {club: MAD, player: Usman Garuba, p: [0.0, 0.0, 0.0]}
+  - {club: MIL, player: Stefano Tonut, p: [0.97, 0.97, 0.97], note: "domestic return 11 Oct"}
+  - {club: MUN, player: Johannes Thiemann, p: [0.95, 0.97, 0.97], note: "missed domestic game; unclear reason"}
+  - {club: MUN, player: Rokas Jokubaitis, p: [0.95, 0.97, 0.97], note: "missed domestic game; unclear reason"}
+  - {club: MUN, player: Vladimir Lucic, p: [0.95, 0.97, 0.97], note: "missed domestic game; unclear reason"}
+  - {club: OLY, player: Donta Hall, p: [0.97, 0.97, 0.97], note: "domestic return 11 Oct"}
+  - {club: OLY, player: Jean Montero, p: [0.95, 0.97, 0.97], note: "illness; missed domestic game"}
+  - {club: OLY, player: Nikola Milutinov, p: [0.97, 0.97, 0.97], note: "played R4 and cleared"}
+  - {club: OLY, player: Nikos Plotas, p: [0.0, 0.0, 0.0]}
+  - {club: OLY, player: Tyler Dorsey, p: [0.5, 0.8, 0.9], note: "left out in R6 by the coach (not injury)"}
+  - {club: PAM, player: Mario Saint-Supery, p: [0.97, 0.97, 0.97], note: "R4 illness; club all available and domestic return"}
+  - {club: PAN, player: Isaac Bonga, p: [0.5, 0.8, 0.95], note: "wrist; missed R5-R6"}
+  - {club: PAN, player: Juancho Hernangomez, p: [0.97, 0.97, 0.97], note: "domestic return; newer than tracker out label"}
+  - {club: PAN, player: Kendrick Nunn, p: [0.8, 0.9, 0.95], note: "back in the Greek league 18 Oct (user); first EL game since the knee"}
+  - {club: PAN, player: Kostas Sloukas, p: [0.8, 0.9, 0.95], note: "back in the Greek league 18 Oct (user)"}
+  - {club: PAN, player: Moustapha Fall, p: [0.85, 0.95, 0.97], note: "13 Oct tracker - hamstring strain in training"}
+  - {club: PAN, player: Nikos Rogkavopoulos, p: [0.3, 0.6, 0.9], note: "hamstring strain"}
+  - {club: PAR, player: Derek Willis, p: [0.3, 0.4, 0.5]}
+  - {club: PAR, player: Lamar Stevens, p: [0.9, 0.97, 0.97], note: "illness; questionable for Thursday"}
+  - {club: PAR, player: Vanja Marinkovic, p: [0.0, 0.0, 0.0]}
+  - {club: PRS, player: Frank Ntilikina, p: [0.6, 0.85, 0.95], note: "muscle pain; out R6 week"}
+  - {club: PRS, player: Jared Rhoden, p: [0.97, 0.97, 0.97], note: "domestic participation 11 Oct"}
+  - {club: PRS, player: Nadir Hifi, p: [0.5, 0.8, 0.9], note: "ankle; missed R5-R6, no timeline"}
+  - {club: PRS, player: TJ Warren, p: [0.5, 0.8, 0.9], note: "out (undisclosed), tracker 17 Oct"}
+  - {club: RED, player: Ebuka Izundu, p: [0.6, 0.85, 0.95], note: "ankle; missed R5-R6"}
+  - {club: RED, player: Johnathan Motley, p: [0.0, 0.3, 0.7], note: "groin, 3-4 weeks from ~10 Oct"}
+  - {club: RED, player: Nikola Djurisic, p: [0.9, 0.97, 0.97], note: "domestic return"}
+  - {club: RED, player: Stefan Miljenovic, p: [0.75, 0.9, 0.95], note: "day to day (ankle)"}
+  - {club: TEL, player: John DiBartolomeo, p: [0.97, 0.97, 0.97], note: "domestic return 10 Oct"}
+  - {club: ULK, player: Shane Larkin, p: [0.97, 0.97, 0.97], note: "domestic return; EuroLeague game-time decision"}
+  - {club: ZAL, player: Azuolas Tubelis, p: [0.97, 0.97, 0.97], note: "knee discomfort; expected to travel; not confirmed"}
+  - {club: ZAL, player: Kaodirichi Akobundu-Ehiogu, p: [0.7, 0.8, 0.9], note: "not travelling; selection not injury"}
+  - {club: ZAL, player: Nigel Williams-Goss, p: [0.6, 0.7, 0.8], note: "not travelling to Istanbul"}
+  - {club: ZAL, player: Saben Lee, p: [0.97, 0.97, 0.97], note: "played R4; lingering hamstring report"}
+
+minutes_expert:  # first game back from injury: expect limited minutes
+  - {club: PAN, player: Kendrick Nunn, minutes: 18.0}
+  - {club: PAN, player: Kostas Sloukas, minutes: 16.0}
+
+moneylines:  # Round 7 not out yet; Rounds 5-6 lines kept for the team ratings
+  5:
+    ULK-ZAL: [1.31, 3.31]
+    ASV-RED: [2.22, 1.63]
+    BAS-DUB: [2.6, 1.36]
+    MIL-MAD: [2.46, 1.53]
+    BAR-TEL: [1.4, 2.87]
+    PAR-PAN: [3.2, 1.34]
+    PAM-OLY: [2.13, 1.59]
+    HTA-BES: [1.29, 2.9]
+    IST-MUN: [1.38, 3.35]
+    PRS-VIR: [1.46, 2.8]
+  6:
+    ULK-PAR: [1.13, 5.89]
+    MIL-DUB: [2.16, 1.7]
+    PAM-TEL: [1.29, 3.58]
+    MAD-ASV: [1.1, 6.99]
+    BES-MUN: [1.55, 2.42]

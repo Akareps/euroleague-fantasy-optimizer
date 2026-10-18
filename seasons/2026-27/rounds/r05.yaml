@@ -4,6 +4,8 @@
 # Sources: BasketNews 12 Oct 08:40, Basketball Sphere 11 Oct 21:54, Valencia
 # official 10 Oct preview, and Masiulis's 12 Oct press conference reporting.
 # Prefer newer club / domestic participation evidence over stale 'Out' labels.
+# Final check 13 Oct 13:30: Basketball Sphere tracker (08:44), RotoWire (12 Oct),
+# BetExplorer lines for the five games it lists; the other lines are unchanged.
 round: 5
 sources:
   - https://basketnews.com/news-212393-euroleague-injury-report-updated.html
@@ -29,6 +31,7 @@ availability:  # P(plays) in [5, 6, 7]; healthy players otherwise use the model 
   - {club: HTA, player: Tomer Ginat, p: [0.2, 0.3, 0.6]}
   - {club: HTA, player: Tyler Ennis, p: [0.0, 0.0, 0.0]}
   - {club: HTA, player: Tamir Blatt, p: [0.0, 0.0, 0.0], note: outside squad}
+  - {club: HTA, player: Bar Timor, p: [0.3, 0.7, 0.9], note: 13 Oct tracker - did not travel}
   - {club: IST, player: Mike James, p: [0.0, 0.0, 0.0]}
   - {club: IST, player: Isaia Cordinier, p: [0.0, 0.0, 0.0]}
   - {club: IST, player: Georgios Papagiannis, p: [0.0, 0.0, 0.0]}
@@ -46,14 +49,15 @@ availability:  # P(plays) in [5, 6, 7]; healthy players otherwise use the model 
   - {club: PAN, player: Juancho Hernangomez, p: [0.95, 0.97, 0.97], note: domestic return; newer than tracker out label}
   - {club: PAN, player: Kendrick Nunn, p: [0.2, 0.35, 0.65], note: still unconfirmed after missing R1-4}
   - {club: PAN, player: Kostas Sloukas, p: [0.15, 0.3, 0.6]}
-  - {club: PAN, player: Moustapha Fall, p: [0.8, 0.9, 0.95], note: played briefly in R4; tracker still out; treat as uncertain}
+  - {club: PAN, player: Moustapha Fall, p: [0.3, 0.6, 0.85], note: 13 Oct tracker - hamstring strain in training}
   - {club: PAR, player: Derek Willis, p: [0.0, 0.0, 0.3]}
   - {club: PAR, player: Vanja Marinkovic, p: [0.0, 0.0, 0.0]}
   - {club: PAR, player: Lamar Stevens, p: [0.95, 0.97, 0.97], note: domestic return 11 Oct}
   - {club: PRS, player: Jared Rhoden, p: [0.97, 0.97, 0.97], note: domestic participation 11 Oct}
   - {club: RED, player: Johnathan Motley, p: [0.0, 0.0, 0.0]}
-  - {club: RED, player: Ebuka Izundu, p: [0.5, 0.7, 0.9], note: ankle sprain; tracker doubtful}
-  - {club: RED, player: Nikola Djurisic, p: [0.85, 0.95, 0.97], note: domestic return after quad absence}
+  - {club: RED, player: Ebuka Izundu, p: [0.1, 0.5, 0.85], note: 13 Oct tracker - out, ankle sprain in ABA game}
+  - {club: RED, player: Nikola Djurisic, p: [0.4, 0.7, 0.9], note: domestic return, but 13 Oct tracker lists him out}
+  - {club: RED, player: Stefan Miljenovic, p: [0.1, 0.6, 0.9], note: 13 Oct tracker - out, minor ankle problem}
   - {club: TEL, player: John DiBartolomeo, p: [0.97, 0.97, 0.97], note: domestic return 10 Oct}
   - {club: ULK, player: Shane Larkin, p: [0.8, 0.9, 0.97], note: domestic return; EuroLeague game-time decision}
   - {club: ZAL, player: Nigel Williams-Goss, p: [0.0, 0.2, 0.6], note: not travelling to Istanbul}
@@ -65,14 +69,48 @@ availability:  # P(plays) in [5, 6, 7]; healthy players otherwise use the model 
 # OddsPapi snapshot. Future fixtures initially use the existing rating model.
 moneylines:
   5:
-    ULK-ZAL: [1.28, 3.25]
-    ASV-RED: [2.0, 1.769]
+    ULK-ZAL: [1.31, 3.31]  # BetExplorer average, 13 Oct 13:30
+    ASV-RED: [2.22, 1.63]  # BetExplorer, 13 Oct
     BAS-DUB: [2.6, 1.36]
-    MIL-MAD: [2.4, 1.43]
-    BAR-TEL: [1.31, 3.1]
-    PAR-PAN: [2.85, 1.3]
+    MIL-MAD: [2.46, 1.53]  # BetExplorer, 13 Oct
+    BAR-TEL: [1.40, 2.87]  # BetExplorer, 13 Oct
+    PAR-PAN: [3.20, 1.34]  # BetExplorer, 13 Oct
     PAM-OLY: [2.13, 1.59]
     HTA-BES: [1.29, 2.9]
     IST-MUN: [1.38, 3.35]
     PRS-VIR: [1.46, 2.8]
 
+# After the round (15 Oct): who missed Round 5 injured or ill. Hifi (ankle, announced
+# on game day) and Ntilikina (muscle pain) by Paris; Bonga (wrist); Miljenovic (ankle).
+injured_out:
+  - {club: ASV, player: Mathis Dossou-Yovo}
+  - {club: BAR, player: Yoan Makoundou}
+  - {club: BAR, player: Justin Minaya}
+  - {club: BES, player: DaQuan Jeffries}
+  - {club: BES, player: Mady Sissoko}
+  - {club: BES, player: Vitto Brown}
+  - {club: DUB, player: Dzanan Musa}
+  - {club: DUB, player: Justin Anderson}
+  - {club: DUB, player: Mam Jaiteh}
+  - {club: HTA, player: Tomer Ginat}
+  - {club: HTA, player: Tyler Ennis}
+  - {club: HTA, player: Tamir Blatt}
+  - {club: HTA, player: Bar Timor}
+  - {club: IST, player: Mike James}
+  - {club: IST, player: Isaia Cordinier}
+  - {club: IST, player: Georgios Papagiannis}
+  - {club: MAD, player: Gabriel Deck}
+  - {club: MAD, player: Usman Garuba}
+  - {club: OLY, player: Nikos Plotas}
+  - {club: PAN, player: Kendrick Nunn}
+  - {club: PAN, player: Kostas Sloukas}
+  - {club: PAR, player: Derek Willis}
+  - {club: PAR, player: Vanja Marinkovic}
+  - {club: RED, player: Johnathan Motley}
+  - {club: RED, player: Ebuka Izundu}
+  - {club: RED, player: Stefan Miljenovic}
+  - {club: ZAL, player: Nigel Williams-Goss}
+  - {club: ZAL, player: Kaodirichi Akobundu-Ehiogu}
+  - {club: PRS, player: Nadir Hifi}
+  - {club: PRS, player: Frank Ntilikina}
+  - {club: PAN, player: Isaac Bonga}
