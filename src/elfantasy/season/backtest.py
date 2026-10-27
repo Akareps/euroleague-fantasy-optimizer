@@ -9,11 +9,20 @@ for those rounds flatter the model, later rounds do not.
 
 Universe: every player the model expected to play (P >= 0.5). A player who
 then did not play scores 0, as in the game.
+
+Two candidate adjustments are scored alongside, without changing any
+projection, until enough rounds say whether to adopt them: the opponent's
+record against each position (what players of that position scored against
+him beyond their forecasts in earlier rounds), and short rest (forecast errors
+of projected starters on three days' rest or less, e.g. the second game of a
+double-round week).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import date
 
 import numpy as np
 from scipy.stats import spearmanr
@@ -46,6 +55,39 @@ class RoundScore:
     hindsight_top: float
     tuned_on: bool
     blend: Score | None = None  # model and price mixed by season.yaml's price_blend
+    opp_adjusted: Score | None = None  # the blend plus the opponent-vs-position adjustment
+    # actual - forecast for projected starters, by rest since the club's previous game
+    short_rest: list[float] = field(default_factory=list)
+    normal_rest: list[float] = field(default_factory=list)
+
+
+OPP_PRIOR_GAMES = 60.0  # pseudo-games of "no effect" behind each opponent-position record
+SHORT_REST_DAYS = 3
+STARTER_MINUTES = 22.0
+
+
+def opponent_adjustment(earlier: list[dict], prior_games: float = OPP_PRIOR_GAMES) -> dict:
+    """(opponent, position) -> what players of that position scored against
+    that opponent beyond their forecasts (``forecast``) in ``earlier`` rows,
+    shrunk towards 0 with ``prior_games`` pseudo-games."""
+
+    total: dict[tuple[str, str], float] = defaultdict(float)
+    n: dict[tuple[str, str], int] = defaultdict(int)
+    for x in earlier:
+        total[(x["opp"], x["pos"])] += x["actual"] - x["forecast"]
+        n[(x["opp"], x["pos"])] += 1
+    return {k: total[k] / (n[k] + prior_games) for k in total}
+
+
+def rest_days(rows_by_round: dict[int, list[dict]], round_no: int) -> dict[str, int]:
+    """club -> days since its game in the previous round."""
+
+    def dates(r):
+        rows = rows_by_round.get(r, [])
+        return {x["club"]: date.fromisoformat(x["date"][:10]) for x in rows if x.get("date")}
+
+    now, before = dates(round_no), dates(round_no - 1)
+    return {c: (d - before[c]).days for c, d in now.items() if c in before}
 
 
 def _score(pred, act, k) -> Score:
@@ -96,6 +138,22 @@ def run_backtest(
                 for m, q, x in zip(calibrated, by_price, test, strict=True)
             ]
             blend = _score(mixed, act, top_k)
+        forecast = mixed if earlier else calibrated
+        for x, f in zip(test, forecast, strict=True):
+            x["forecast"] = f
+        opp_adjusted = None
+        if earlier:
+            adj = opponent_adjustment(earlier)
+            opp_adjusted = _score(
+                [x["forecast"] + adj.get((x["opp"], x["pos"]), 0.0) for x in test], act, top_k
+            )
+        rest = rest_days(rows, r)
+        short, normal = [], []
+        for x in test:
+            if earlier and x["min_p"] >= STARTER_MINUTES and x["club"] in rest:
+                (short if rest[x["club"]] <= SHORT_REST_DAYS else normal).append(
+                    x["actual"] - x["forecast"]
+                )
         out.append(
             RoundScore(
                 round=r,
@@ -106,6 +164,9 @@ def run_backtest(
                 blend=blend,
                 hindsight_top=float(np.sort(act)[::-1][:top_k].mean()),
                 tuned_on=r in model.season.tuned_on,
+                opp_adjusted=opp_adjusted,
+                short_rest=short,
+                normal_rest=normal,
             )
         )
     return out

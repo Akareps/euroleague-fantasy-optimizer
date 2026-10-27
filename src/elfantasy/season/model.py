@@ -38,7 +38,7 @@ from scipy.stats import norm
 from elfantasy.data.injuries import normalise_name
 from elfantasy.projection import market as mk
 from elfantasy.rules import GameRules
-from elfantasy.scoring import price_change
+from elfantasy.scoring import fantasy_score, price_change
 from elfantasy.season.data import SeasonData
 from elfantasy.season.inputs import (
     CalibrationSettings,
@@ -56,7 +56,9 @@ HCA = 3.5  # home-court advantage, points
 TEAM_MINUTES = 200.0
 WIN_BONUS = 0.10  # +10% of the fantasy score when the team wins
 HEALTHY = 0.97  # P(plays) for a fit player: the odd late scratch nobody reported
-RANK_SHARE = [1.0] * 9 + [0.8, 0.6, 0.4]  # rotation discount beyond the ninth man
+# Rotation discount beyond the ninth man. Backtest R2-R7: the steeper
+# [0.8, 0.6, 0.4] left deep-bench players 2.1 minutes short and starters 2.3 over.
+RANK_SHARE = [1.0] * 9 + [0.9, 0.8, 0.7, 0.5, 0.5, 0.5]
 
 
 def _pkey(p: dict) -> Key:
@@ -536,10 +538,10 @@ def coach_points(margin: float) -> int:
 
 
 def coach_price_change(points: float, price: float) -> float:
-    """Fitted on all 20 Round 1 coach changes (residual SD 0.03): -10 pts ->
-    -0.4, -5 -> -0.3, +10 -> +0.1, +20 -> +0.3; +25 -> +0.4 matched Obradovic
-    over Rounds 2-3."""
-    return round(-0.08 + 0.0246 * points - 0.012 * price, 1)
+    """(points - price) / 40 to one decimal, halves rounded up: an 8.0 coach
+    gains 0.4 for +25 and loses 0.3 for -5. Reproduces all 18 Round 1 coach
+    changes and 14 of 19 over Rounds 2-3 (the earlier fit: 17 and 11)."""
+    return math.floor((points - price) / 4.0 + 0.5 + 1e-9) / 10
 
 
 def estimate_prices(players, coaches, target, data, season, rules, games, private=None, known=None):
@@ -585,9 +587,10 @@ def estimate_prices(players, coaches, target, data, season, rules, games, privat
             else:
                 ln = boxes[rnd].get(x.get("code"))
                 played = bool(ln and ln["minutes"] > 0)
-                change = float(
-                    price_change(ln["pir"] if played else 0.0, price, rules, played=played)
-                )
+                score = (ln["pir"] or 0.0) if played else 0.0
+                if rules.price_basis == "fantasy":
+                    score = float(fantasy_score(score, margin.get((rnd, x["club"]), 0) > 0, rules))
+                change = float(price_change(score, price, rules, played=played))
                 price = round(price + change, 1)
         x["price_estimated"] = x["price"] = price
 
@@ -675,7 +678,7 @@ class SeasonModel:
         )  # fmt: skip
 
     def actuals(self, round_no: int) -> dict[str, float]:
-        """player code -> fantasy points (PIR, +10% for a win) for those who played."""
+        """player code -> fantasy points (PIR, +10% of |PIR| for a win) for those who played."""
         won = {}
         for g in self.games.values():
             if g["round"] == round_no and g["played"]:
@@ -684,7 +687,9 @@ class SeasonModel:
         out = {}
         for ln in self.data.boxes([round_no])[round_no].values():
             if ln["minutes"] > 0:
-                out[ln["player_id"]] = (ln["pir"] or 0.0) * (1.1 if won[ln["team_code"]] else 1.0)
+                out[ln["player_id"]] = float(
+                    fantasy_score(ln["pir"] or 0.0, won[ln["team_code"]], self.rules)
+                )
         return out
 
     def reproject(self, round_no: int) -> list[dict]:
@@ -702,7 +707,7 @@ class SeasonModel:
             rows.append({"name": p["name"], "club": p["club"], "pos": p["pos"], "group": prior_group(p),
                          "price": p["price"], "ev": r["ev"], "min_p": r["min"], "play": r["play"],
                          "actual": act.get(p["code"], 0.0), "round": round_no, "opp": r["opp"],
-                         "home": r["home"], "margin": r["margin"]})  # fmt: skip
+                         "home": r["home"], "margin": r["margin"], "date": r["date"]})  # fmt: skip
         return rows
 
     def calibration(self, target: int, rows_by_round: dict[int, list[dict]] | None = None):

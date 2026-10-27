@@ -77,32 +77,20 @@ class TestCoachPoints:
 
 
 class TestPriceChange:
-    def test_the_observed_rule(self, rules):
-        """A 12.0 player scoring 21 moves to 12.4."""
+    def test_the_rule(self, rules):
+        """(fantasy score - 1.1 x price) / 25: a cheap player scoring 20 gains,
+        a star scoring the same loses."""
 
-        assert scoring.price_change(21, 12.0, rules) == pytest.approx(0.4)
+        assert rules.price_basis == "fantasy"
+        assert scoring.price_change(20.0, 5.0, rules) == pytest.approx(0.6)
+        assert scoring.price_change(20.0, 20.0, rules) == pytest.approx(-0.1)
+        assert scoring.price_change(13.0, 4.5, rules) == pytest.approx(0.3)
 
-    def test_rounds_to_whole_steps(self, rules):
-        assert scoring.price_change(13.1, 12.0, rules) == pytest.approx(0.0)
-        assert scoring.price_change(13.2, 12.0, rules) == pytest.approx(0.1)
-
-    def test_fitted_on_round_1(self, rules):
-        """Real Round 1 2026-27 changes (raw PIR, opening -> Round 2 price).
-
-        The rule matches 82% of players exactly, so a few real cases miss by one
-        step -- e.g. Wright (9 PIR at 14.0) actually lost 0.3, the rule says 0.2.
-        """
-
-        cases = [  # (PIR, price, actual change)
-            (30, 17.0, 0.6),  # Vezenkov
-            (18, 14.8, 0.1),  # Francisco
-            (10, 4.7, 0.2),  # Saint-Supery
-            (0, 7.0, -0.3),  # Parra
-            (12, 4.5, 0.3),  # Mantzoukas
-            (14, 9.7, 0.2),  # Williams-Goss
-        ]
-        for pir, price, actual in cases:
-            assert scoring.price_change(pir, price, rules) == pytest.approx(actual)
+    def test_halves_round_up(self, rules):
+        # 10.0 player: holds at 11; +-1.25 is exactly half a step
+        assert scoring.price_change(12.25, 10.0, rules) == pytest.approx(0.1)
+        assert scoring.price_change(9.75, 10.0, rules) == pytest.approx(0.0)
+        assert scoring.price_change(9.7, 10.0, rules) == pytest.approx(-0.1)
 
     def test_a_player_who_sits_out_loses_a_flat_step(self, rules):
         assert scoring.price_change(0, 12.0, rules, played=False) == pytest.approx(-0.1)
@@ -126,13 +114,16 @@ class TestPriceChange:
 
     def test_vectorised(self, rules):
         out = scoring.price_change(np.array([0.0, 21.0]), np.array([4.0, 12.0]), rules)
-        assert out == pytest.approx([0.0, 0.4])
+        assert out == pytest.approx([0.0, 0.3])
 
 
 class TestFantasyScore:
     def test_win_bonus(self, rules):
         assert scoring.fantasy_score(20.0, True, rules) == pytest.approx(22.0)
         assert scoring.fantasy_score(20.0, False, rules) == pytest.approx(20.0)
+
+    def test_win_bonus_on_a_negative_score_is_a_tenth_of_its_size(self, rules):
+        assert scoring.fantasy_score(-3.0, True, rules) == pytest.approx(-2.7)
 
     def test_margin_from_win_probability_is_symmetric(self):
         assert scoring.win_prob_to_margin(0.5) == pytest.approx(0.0)

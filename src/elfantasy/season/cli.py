@@ -238,7 +238,11 @@ def backtest(
 ) -> None:
     """Every finished round, projected with only what was known before it."""
 
-    from elfantasy.season.backtest import run_backtest
+    from dataclasses import asdict
+
+    import numpy as np
+
+    from elfantasy.season.backtest import SHORT_REST_DAYS, run_backtest
     from elfantasy.season.model import SeasonModel
 
     rules, season, data = _context(season_dir, config)
@@ -248,23 +252,47 @@ def backtest(
         _fail(exc)
     table = Table(title="Chronological backtest", header_style="bold")
     for col in ("Round", "n", "Model RMSE", "Price RMSE", "Model rho", "Price rho",
-                f"Top-{top} model", f"Top-{top} price", f"Top-{top} mix", f"Top-{top} hindsight"):  # fmt: skip
+                f"Top-{top} model", f"Top-{top} price", f"Top-{top} mix", f"Top-{top} mix+opp",
+                f"Top-{top} hindsight"):  # fmt: skip
         table.add_column(col, justify="right")
     for s in scores:
-        p = s.price
+        p, o = s.price, s.opp_adjusted
         table.add_row(
             f"{s.round}{'*' if s.tuned_on else ''}", str(s.n), f"{s.model.rmse:.2f}",
             f"{p.rmse:.2f}" if p else "-", f"{s.model.rho:.3f}", f"{p.rho:.3f}" if p else "-",
             f"{s.model.top:.1f}", f"{p.top:.1f}" if p else "-",
-            f"{s.blend.top:.1f}" if s.blend else "-", f"{s.hindsight_top:.1f}",
+            f"{s.blend.top:.1f}" if s.blend else "-", f"{o.top:.1f}" if o else "-",
+            f"{s.hindsight_top:.1f}",
         )  # fmt: skip
     report.console.print(table)
     report.console.print(
         "[dim]Model = calibrated on earlier rounds only; price = actual ~ price fitted on earlier "
-        "rounds (none for round 1); mix = the two blended by price_blend. * = a round used to choose the "
-        "evidence weights.[/]"
+        "rounds (none for round 1); mix = the two blended by price_blend; mix+opp = the mix plus "
+        "each opponent's record against the position (a candidate, not used in projections). * = a "
+        "round used to choose the evidence weights.[/]"
     )
+    scored = [s for s in scores if s.blend and s.opp_adjusted]
+    if scored:
+
+        def mean(f):
+            return float(np.mean([f(s) for s in scored]))
+
+        report.console.print(
+            f"Opponent-vs-position candidate, rounds {scored[0].round}-{scored[-1].round}: top-{top} "
+            f"{mean(lambda s: s.blend.top):.2f} -> {mean(lambda s: s.opp_adjusted.top):.2f}, RMSE "
+            f"{mean(lambda s: s.blend.rmse):.3f} -> {mean(lambda s: s.opp_adjusted.rmse):.3f}, rho "
+            f"{mean(lambda s: s.blend.rho):.3f} -> {mean(lambda s: s.opp_adjusted.rho):.3f}"
+        )
+    short = [e for s in scores for e in s.short_rest]
+    normal = [e for s in scores for e in s.normal_rest]
+    if short and normal:
+
+        def line(e):
+            return f"{np.mean(e):+.2f} (n={len(e)}, se {np.std(e) / np.sqrt(len(e)):.2f})"
+
+        report.console.print(
+            f"Projected starters, actual - forecast: on {SHORT_REST_DAYS} days' rest or less "
+            f"{line(short)}; with more rest {line(normal)}"
+        )
     if save:
-        save.write_text(json.dumps([s.__dict__ | {"model": s.model.__dict__, "raw": s.raw.__dict__,
-                                                  "price": s.price.__dict__ if s.price else None}
-                                    for s in scores], indent=1), encoding="utf-8")  # fmt: skip
+        save.write_text(json.dumps([asdict(s) for s in scores], indent=1), encoding="utf-8")

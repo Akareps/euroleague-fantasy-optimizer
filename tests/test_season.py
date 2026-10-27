@@ -350,6 +350,7 @@ class TestEndToEnd:
         assert first["price"] != 4.0  # two rounds of games moved it
         scores = run_backtest(model)
         assert [s.round for s in scores] == [1, 2] and scores[1].tuned_on and scores[1].price
+        assert scores[1].opp_adjusted and scores[0].opp_adjusted is None
 
     def test_the_commands(self, tmp_path, monkeypatch):
         from typer.testing import CliRunner
@@ -445,7 +446,8 @@ def test_prices_chain_from_the_latest_app_price(tmp_path, rules):
     p = {"name": "Xavier Lowe", "club": "MAD", "pos": "G", "code": "1", "price": 9.0}
     known = {3: {key("MAD", "Xavier Lowe"): 12.0}}
     estimate_prices([p], [], 4, data, season, rules, {}, None, known)
-    assert p["price"] == pytest.approx(12.4)  # 12.0 in the app before Round 3, +0.4 for 21 PIR
+    # 12.0 in the app before Round 3, +0.3 for 21 PIR without a win: (21 - 13.2) / 25
+    assert p["price"] == pytest.approx(12.3)
 
 
 def test_team_points_shrink_towards_the_league():
@@ -462,3 +464,24 @@ def test_team_points_shrink_towards_the_league():
         "AAA", "BBB", True, 6.0, {("AAA", "BBB"): 160.0}, teams, league
     ) == pytest.approx(83 / 90)
     assert points_ratio("AAA", "BBB", True, 0.0, {}, {}, None) == 1.0  # no games yet
+
+
+# ---------------------------------------------------------------- backtest candidates
+def test_opponent_adjustment_is_shrunk_towards_zero():
+    from elfantasy.season.backtest import opponent_adjustment
+
+    beat = {"opp": "AAA", "pos": "C", "actual": 14.0, "forecast": 10.0}
+    missed = {"opp": "AAA", "pos": "G", "actual": 8.0, "forecast": 10.0}
+    adj = opponent_adjustment([beat, beat, beat, missed], prior_games=3)
+    assert adj[("AAA", "C")] == pytest.approx(12.0 / 6)
+    assert adj[("AAA", "G")] == pytest.approx(-2.0 / 4)
+
+
+def test_rest_days_since_the_previous_round():
+    from elfantasy.season.backtest import rest_days
+
+    rows = {
+        7: [{"club": "AAA", "date": "2026-10-23T20:00:00"}, {"club": "BBB", "date": "2026-10-22"}],
+        8: [{"club": "AAA", "date": "2026-10-27T20:00:00"}, {"club": "CCC", "date": "2026-10-28"}],
+    }
+    assert rest_days(rows, 8) == {"AAA": 4}

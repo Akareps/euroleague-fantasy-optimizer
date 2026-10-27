@@ -39,7 +39,8 @@ class GameRules:
     unlimited_after_rounds: tuple[int, ...] = ()
 
     price_basis: str = "pir"  # the score prices react to: "pir" or "fantasy"
-    price_rounding: str = "round"  # "round" or "trunc" to whole steps
+    price_rounding: str = "round"  # "round", "trunc" or "half_up" to whole steps
+    price_hurdle: float = 1.0  # the score that holds a price is hurdle x price
     price_step_points: float = 2.25
     price_step: float = 0.1
     price_dnp_change: float = -0.1
@@ -101,6 +102,7 @@ class GameRules:
             ),
             price_basis=str(get("pricing.basis", "pir")),
             price_rounding=str(get("pricing.rounding", "round")),
+            price_hurdle=float(get("pricing.hurdle", 1.0)),
             price_step_points=float(get("pricing.step_points", 2.25)),
             price_step=float(get("pricing.step", 0.1)),
             price_dnp_change=float(get("pricing.dnp_change", -0.1)),

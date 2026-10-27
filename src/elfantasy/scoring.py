@@ -15,9 +15,10 @@ ArrayLike = float | np.ndarray
 
 
 def fantasy_score(pir: ArrayLike, won: ArrayLike, rules: GameRules) -> ArrayLike:
-    """Player score: PIR components plus the team-win bonus."""
+    """Player score: PIR plus, for a win, ``win_bonus`` of its absolute value
+    (-3 PIR in a win scores -2.7)."""
 
-    return pir * np.where(won, 1.0 + rules.win_bonus, 1.0)
+    return pir + np.where(won, rules.win_bonus * np.abs(pir), 0.0)
 
 
 def expected_win_bonus_factor(win_prob: float, rules: GameRules) -> float:
@@ -67,14 +68,20 @@ def price_change(
     """Credits a player gains or loses after one game.
 
     ``score`` is whatever ``rules.price_basis`` names (raw PIR by default).
-    +/- ``price_step`` per ``price_step_points`` above or below his current
-    price, rounded to whole steps; ``price_dnp_change`` if he did not play
-    (``played`` False); never below the floor.
+    +/- ``price_step`` per ``price_step_points`` above or below
+    ``price_hurdle`` x his current price, rounded to whole steps;
+    ``price_dnp_change`` if he did not play (``played`` False); never below
+    the floor.
     """
 
     price = np.asarray(price, dtype=float)
-    x = (np.asarray(score, dtype=float) - price) / rules.price_step_points
-    steps = np.round(x) if rules.price_rounding == "round" else np.trunc(x)
+    x = (np.asarray(score, dtype=float) - rules.price_hurdle * price) / rules.price_step_points
+    if rules.price_rounding == "half_up":
+        steps = np.floor(x + 0.5 + 1e-9)  # halves go up, -0.5 -> 0
+    elif rules.price_rounding == "round":
+        steps = np.round(x)
+    else:
+        steps = np.trunc(x)
     change = rules.price_step * steps
     if played is not None:
         change = np.where(played, change, rules.price_dnp_change)
