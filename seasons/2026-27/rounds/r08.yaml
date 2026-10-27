@@ -1,0 +1,121 @@
+# Round 8 (27-28 Oct 2026), first of a double-round week (Round 9 on 29-30 Oct).
+# FINAL CHECK 27 Oct 12:35: tracker 27 Oct 11:28 (Peters out), RotoWire 27 Oct, lines and totals.
+# SECOND PASS 26 Oct evening: tracker 26 Oct 21:37, RotoWire 26 Oct, Navarro on Zvezda (25 Oct),
+# Baskonia on Sedekerskis; news first collected by the Codex review of 26 Oct.
+# FIRST PASS 26 Oct midday: Round 8 lines and totals and Round 9 lines (BetExplorer 26 Oct),
+# Basketball Sphere tracker (23 Oct 21:25), RotoWire injuries and news (to 24 Oct), Round 7
+# box scores. New signings not yet in the player pool: Konchar (OLY), Reeves and Franks (PAR),
+# Koloko (RED), Keenan Evans (ZAL). Refresh before the first tip-off.
+round: 8
+
+availability:  # P(plays) in [8, 9, 10]
+  - {club: ASV, player: Mathis Dossou-Yovo, p: [0.0, 0.0, 0.3], note: "adductor, out until November"}
+  - {club: BAR, player: Dario Brizuela, p: [0.9, 0.95, 0.97], note: "cleared (tracker 26 Oct); 14 pts domestically 24 Oct"}
+  - {club: BAR, player: Yoan Makoundou, p: [0.1, 0.2, 0.3], note: "knee"}
+  - {club: BAS, player: Kobi Simmons, p: [0.3, 0.6, 0.8], note: "head injury, missed R7 (tracker 23 Oct)"}
+  - {club: BAS, player: Chris Duarte, p: [0.3, 0.6, 0.8], note: "muscle injury, missed R7 (tracker 23 Oct)"}
+  - {club: BES, player: DaQuan Jeffries, p: [0.0, 0.1, 0.4], note: "wrist, back in 15-20 days from 21 Oct"}
+  - {club: BES, player: Mady Sissoko, p: [0.0, 0.0, 0.0]}
+  - {club: BES, player: Vitto Brown, p: [0.0, 0.0, 0.0], note: "stale price-list entry"}
+  - {club: DUB, player: Dzanan Musa, p: [0.9, 0.95, 0.97], note: "cleared (tracker 26 Oct); started domestically 24 Oct"}
+  - {club: DUB, player: Justin Anderson, p: [0.3, 0.5, 0.7], note: "hamstring, out (tracker)"}
+  - {club: DUB, player: Mam Jaiteh, p: [0.0, 0.0, 0.0]}
+  - {club: DUB, player: Klemen Prepelic, p: [0.6, 0.8, 0.9], note: "back; 0 minutes in R7"}
+  - {club: HTA, player: Bar Timor, p: [0.3, 0.5, 0.7], note: "out, did not travel (tracker)"}
+  - {club: HTA, player: Tamir Blatt, p: [0.3, 0.5, 0.7], note: "out of the squad (tracker 26 Oct)"}
+  - {club: HTA, player: Tomer Ginat, p: [0.9, 0.95, 0.97], note: "cleared (tracker 26 Oct)"}
+  - {club: HTA, player: Tyler Ennis, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Georgios Papagiannis, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Isaia Cordinier, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Mike James, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: PJ Dozier, p: [0.0, 0.2, 0.5], note: "back, 2-3 weeks from 20 Oct"}
+  - {club: MAD, player: Gabriel Deck, p: [0.0, 0.0, 0.2]}
+  - {club: MAD, player: Usman Garuba, p: [0.0, 0.0, 0.0]}
+  - {club: MIL, player: Stefano Tonut, p: [0.75, 0.85, 0.9], note: "missed R7, no reason found"}
+  - {club: OLY, player: Evan Fournier, p: [0.0, 0.1, 0.4], note: "about 3 weeks from 20 Oct"}
+  - {club: OLY, player: Jean Montero, p: [0.3, 0.5, 0.7], note: "ankle and knee, missed R7"}
+  - {club: OLY, player: Nikos Plotas, p: [0.0, 0.2, 0.4], note: "elbow"}
+  - {club: OLY, player: Tyler Dorsey, p: [0.0, 0.0, 0.0], note: "away from the team for a month (disciplinary, 22 Oct)"}
+  - {club: PAN, player: Eleftherios Mantzoukas, p: [0.5, 0.8, 0.95], note: "illness, doubtful (tracker 26 Oct)"}
+  - {club: PAN, player: Kostas Sloukas, p: [0.85, 0.9, 0.95], note: "9 assists in the Greek league 24 Oct"}
+  - {club: PAN, player: Nikos Rogkavopoulos, p: [0.2, 0.4, 0.7], note: "hamstring, out (tracker)"}
+  - {club: PAR, player: Tonye Jekiri, p: [0.1, 0.3, 0.6], note: "adductor, at least 2 weeks from 18 Oct"}
+  - {club: PAR, player: Derek Willis, p: [0.0, 0.1, 0.3], note: "ankle, several weeks"}
+  - {club: PAR, player: Vanja Marinkovic, p: [0.0, 0.0, 0.0]}
+  - {club: PRS, player: Frank Ntilikina, p: [0.2, 0.5, 0.8], note: "muscle pain, out (tracker 26 Oct)"}
+  - {club: PRS, player: Nadir Hifi, p: [0.3, 0.5, 0.7], note: "ankle, missed R5-R7"}
+  - {club: PRS, player: TJ Warren, p: [0.3, 0.5, 0.7], note: "undisclosed, out (tracker)"}
+  - {club: RED, player: Johnathan Motley, p: [0.9, 0.95, 0.97], note: "cleared; 19 min domestically 25 Oct"}
+  - {club: RED, player: Stefan Miljenovic, p: [0.3, 0.6, 0.8], note: "ankle, out (tracker 26 Oct)"}
+  - {club: RED, player: Ognjen Dobric, p: [0.6, 0.7, 0.8], note: "heel, day by day (Navarro, 25 Oct)"}
+  - {club: TEL, player: Iffe Lundberg, p: [0.0, 0.0, 0.0], note: "quadriceps, 6-8 weeks"}
+  - {club: ZAL, player: Kaodirichi Akobundu-Ehiogu, p: [0.7, 0.8, 0.9], note: "selection, not injury"}
+  - {club: ZAL, player: Nigel Williams-Goss, p: [0.0, 0.0, 0.2], note: "hamstring, about 4 weeks"}
+  - {club: BAS, player: Tadas Sedekerskis, p: [0.0, 0.1, 0.4], note: "right thigh, out (Baskonia 25 Oct)"}
+  - {club: BES, player: Lonnie Walker, p: [0.7, 0.85, 0.95], note: "day to day (tracker 26 Oct)"}
+  - {club: DUB, player: Thomas Walkup, p: [0.5, 0.7, 0.85], note: "back, doubtful (tracker 26 Oct)"}
+  - {club: MAD, player: Nick Smith Jr., p: [0.2, 0.5, 0.7], note: "foot, out (tracker 26 Oct)"}
+  - {club: MIL, player: Alec Peters, p: [0.1, 0.4, 0.7], note: "left knee contusion, out (tracker 27 Oct 11:28)"}
+  - {club: MIL, player: Garrison Mathews, p: [0.5, 0.7, 0.85], note: "tendon, doubtful (tracker 26 Oct)"}
+  - {club: PAM, player: Nate Reuvers, p: [0.0, 0.1, 0.3], note: "foot bone, out (tracker 26 Oct)"}
+  - {club: PAR, player: Jabari Parker, p: [0.0, 0.0, 0.0], note: "left Partizan (24 Oct)"}
+  - {club: RED, player: Jordan Nwora, p: [0.75, 0.85, 0.95], note: "stayed in Belgrade with a problem (Navarro, 25 Oct)"}
+  - {club: RED, player: Kameron Weiler-Babb, p: [0.75, 0.85, 0.95], note: "stayed in Belgrade with a problem (Navarro, 25 Oct)"}
+  - {club: TEL, player: Gur Lavi, p: [0.0, 0.3, 0.6], note: "out (tracker 26 Oct)"}
+
+minutes_expert:  # first game back: expect limited minutes
+  - {club: PAN, player: Kostas Sloukas, minutes: 16.0}
+
+moneylines:  # decimal (home, away); Rounds 8-9 BetExplorer averages 27 Oct 12:35, 6-7 kept for ratings
+  8:
+    DUB-PRS: [1.19, 4.28]
+    MUN-BAR: [1.87, 1.86]
+    RED-TEL: [1.39, 2.82]
+    PAN-MIL: [1.09, 6.54]
+    PAM-ULK: [1.85, 1.88]
+    BAS-MAD: [4.28, 1.19]
+    BES-OLY: [3.01, 1.35]
+    HTA-IST: [1.32, 3.21]
+    ASV-PAR: [1.81, 1.93]
+    VIR-ZAL: [1.99, 1.76]
+  9:
+    RED-MUN: [1.33, 3.12]
+    TEL-PRS: [1.39, 2.79]
+    MAD-ULK: [1.60, 2.22]
+    DUB-HTA: [1.54, 2.33]
+    IST-PAN: [2.59, 1.45]
+    ZAL-PAR: [1.27, 3.40]
+    ASV-BAS: [1.65, 2.13]
+    OLY-MIL: [1.14, 5.06]
+    BAR-PAM: [1.75, 1.96]
+    VIR-BES: [1.65, 2.13]
+  7:
+    HTA-VIR: [1.29, 3.60]
+    IST-BES: [1.53, 2.48]
+    MUN-DUB: [2.38, 1.57]
+    TEL-MAD: [2.82, 1.42]
+    PAN-BAS: [1.06, 9.47]
+    MIL-BAR: [1.58, 2.36]
+    PAR-RED: [1.93, 1.85]
+    ZAL-ASV: [1.13, 5.99]
+    OLY-ULK: [1.63, 2.27]
+    PRS-PAM: [2.55, 1.50]
+  6:
+    ULK-PAR: [1.13, 5.89]
+    MIL-DUB: [2.16, 1.7]
+    PAM-TEL: [1.29, 3.58]
+    MAD-ASV: [1.1, 6.99]
+    BES-MUN: [1.55, 2.42]
+
+totals:  # expected game total from over/under lines (BetExplorer, 27 Oct 12:35): the
+  8:     # most-quoted line, moved by its over/under imbalance
+    DUB-PRS: 179.1
+    MUN-BAR: 176.5
+    RED-TEL: 173.2
+    PAN-MIL: 165.2
+    PAM-ULK: 175.2
+    BAS-MAD: 183.0
+    BES-OLY: 175.5
+    HTA-IST: 172.5
+    ASV-PAR: 168.7
+    VIR-ZAL: 171.2
