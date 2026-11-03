@@ -169,6 +169,8 @@ def _planner(round_no, season_dir, config):
         _fail(exc)
     save_projection(result, data.projections_file(round_no))
     planner = RoundPlanner(result, rules, private, gamma=season.gamma,
+                           credit_per_round=season.credit_per_round,
+                           credit_weight=season.credit_weight, last_round=season.last_round,
                            log=lambda m: report.console.print(f"[dim]{m}[/]"))  # fmt: skip
     return planner, data, private
 

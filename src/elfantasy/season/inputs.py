@@ -79,6 +79,9 @@ class SeasonInputs:
     price_blend: float = 1.0  # weight on the model; the rest on a price-implied forecast
     team_points_weight: float = 0.0  # scale by the team's expected points in the game (0 = off)
     team_points_prior_games: float = 3.0  # pseudo-games of league average behind team averages
+    credit_per_round: float = 0.0  # points one more credit buys per round (0 = horizon only)
+    credit_weight: float = 0.0  # discount on the rounds after the planning horizon
+    last_round: int = 38
 
     @property
     def previous_code(self) -> str:
@@ -202,6 +205,9 @@ def load_season(root: Path | None = None) -> SeasonInputs:
         price_blend=float(model.get("price_blend", 1.0)),
         team_points_weight=float((model.get("team_points") or {}).get("weight", 0.0)),
         team_points_prior_games=float((model.get("team_points") or {}).get("prior_games", 3.0)),
+        credit_per_round=float((model.get("credits") or {}).get("per_round", 0.0)),
+        credit_weight=float((model.get("credits") or {}).get("weight", 0.0)),
+        last_round=int((model.get("credits") or {}).get("last_round", 38)),
     )
 
 

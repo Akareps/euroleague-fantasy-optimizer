@@ -119,6 +119,15 @@ model:
   team_points:
     weight: 1.0
     prior_games: 3
+  # Credits outlive the planning horizon: a price rise is worth what the credit buys
+  # every later round. Per round: one more credit adds 1.06-1.37 points to a free
+  # Round 9 rebuild (budgets 100-110). Weight: a judgment call (2 Nov) for the transfer
+  # limit and how far ahead those rounds are -- about 5 points a credit at Round 10,
+  # falling to 0 by the last round. Not backtestable: it changes the squads owned.
+  credits:
+    per_round: 1.2
+    weight: 0.15
+    last_round: 38
   calibration:        # additive group x tier corrections, empirical-Bayes shrunk
     prior_sd: 1.5
     cv: 0.634

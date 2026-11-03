@@ -63,12 +63,18 @@ class RoundPlanner:
         private: PrivateInputs | None,
         *,
         gamma: float = 0.4,
+        credit_per_round: float = 0.0,
+        credit_weight: float = 0.0,
+        last_round: int = 38,
         log: Callable[[str], None] = print,
     ) -> None:
         self.proj = projection
         self.rules = rules
         self.private = private
         self.gamma = gamma
+        self.credit_per_round = credit_per_round
+        self.credit_weight = credit_weight
+        self.last_round = last_round
         self.log = log
         self.round = int(projection["round"])
         # Stop at a free-transfer window: holding a player past it is worth
@@ -148,6 +154,20 @@ class RoundPlanner:
             richer = optimise_lineup(self.lp, self.lc, self.rules, **kw, budget=self.budget() + 1)
         return max(richer.objective - base.objective, 0.0), base
 
+    def long_run_credit(self) -> float:
+        """What a credit is worth after this horizon: the points it buys per
+        round x the rounds left in the season x a discount for the transfer
+        limit and for how far ahead those rounds are."""
+        rounds_left = max(self.last_round - self.rounds[-1], 0)
+        return self.credit_per_round * rounds_left * self.credit_weight
+
+    def _simulator(self, horizon_credit: float, **kw) -> TurnSimulator:
+        # Price changes count at their whole-season worth. The bank does not
+        # take the long-run part: spending it keeps the credits in the squad.
+        return TurnSimulator(self.sp, self.sc, self.rules, budget=self.budget(),
+                             credit_value=horizon_credit + self.long_run_credit(),
+                             bank_value=0.35 * horizon_credit, **kw)  # fmt: skip
+
     def title(self) -> str:
         first = str(self.round)
         days = sorted(
@@ -162,10 +182,10 @@ class RoundPlanner:
     def search(self, *, n_search: int = 6000, n_final: int = 40000, seeds=(11, 99)) -> PlanResult:
         rules, log = self.rules, self.log
         credit, base = self.credit_value()
-        log(f"one credit is worth {credit:.2f} points (R{self.round} + discounted later rounds)")
+        log(f"one credit is worth {credit:.2f} points (R{self.round} + discounted later rounds)"
+            f" + {self.long_run_credit():.2f} for the rest of the season")  # fmt: skip
         budget = self.budget()
-        sim = TurnSimulator(self.sp, self.sc, rules, n=n_search, seed=seeds[0], budget=budget,
-                            credit_value=credit)  # fmt: skip
+        sim = self._simulator(credit, n=n_search, seed=seeds[0])
         owned = (
             ({sim.index[n] for n in self.squad}, sim.coach_index.get(self.coach))
             if self.squad
@@ -207,8 +227,7 @@ class RoundPlanner:
                 ids, coach = ids_of(sol)
                 ladder_raw[k] = local_search(sim, ids, coach, cands, current=owned, max_transfers=k)
 
-        final = TurnSimulator(self.sp, self.sc, rules, n=n_final, seed=seeds[1], budget=budget,
-                              credit_value=credit)  # fmt: skip
+        final = self._simulator(credit, n=n_final, seed=seeds[1])
 
         def remap(ids):
             return [final.index[sim.players[i].player_id] for i in ids]
@@ -252,7 +271,7 @@ class RoundPlanner:
         except InfeasibleError:
             static_first = float("nan")
         plan = LineupPlan(sim=final, ids=ids, coach=coach, evaluation=ev, static=base,
-                          credit_value=credit, static_first_round=static_first)  # fmt: skip
+                          credit_value=final.credit_value, static_first_round=static_first)  # fmt: skip
         if self.squad:
             plan.sold = [n for n in self.squad if n not in roster]
             plan.bought = sorted(roster - set(self.squad))
@@ -304,8 +323,7 @@ class RoundPlanner:
             plans.setdefault("hold", (self.squad, self.coach))
         res: dict[str, list] = {k: [] for k in plans}
         for seed in seeds:
-            sim = TurnSimulator(self.sp, self.sc, self.rules, n=n, seed=seed, budget=budget,
-                                credit_value=credit)  # fmt: skip
+            sim = self._simulator(credit, n=n, seed=seed)
             for name, (names, coach) in plans.items():
                 missing = [x for x in names if x not in sim.index]
                 if missing:

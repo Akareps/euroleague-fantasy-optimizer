@@ -485,3 +485,19 @@ def test_rest_days_since_the_previous_round():
         8: [{"club": "AAA", "date": "2026-10-27T20:00:00"}, {"club": "CCC", "date": "2026-10-28"}],
     }
     assert rest_days(rows, 8) == {"AAA": 4}
+
+
+def test_credits_count_for_the_rest_of_the_season(rules):
+    """Price changes are valued past the horizon; the bank is not (spent, the
+    credits stay in the squad)."""
+
+    proj = _projection()
+    planner = RoundPlanner(proj, rules, None, credit_per_round=1.2, credit_weight=0.15,
+                           last_round=38, log=lambda m: None)  # fmt: skip
+    assert planner.long_run_credit() == pytest.approx(1.2 * (38 - planner.rounds[-1]) * 0.15)
+    sim = planner._simulator(1.0, n=200, seed=1)
+    assert sim.credit_value == pytest.approx(1.0 + planner.long_run_credit())
+    assert sim.bank_value == pytest.approx(0.35)
+    assert RoundPlanner(proj, rules, None, log=lambda m: None).long_run_credit() == 0.0
+    season = load_season(SEASON)
+    assert (season.credit_per_round, season.credit_weight, season.last_round) == (1.2, 0.15, 38)
