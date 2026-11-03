@@ -119,3 +119,45 @@ totals:  # expected game total from over/under lines (BetExplorer, 27 Oct 12:35)
     HTA-IST: 172.5
     ASV-PAR: 168.7
     VIR-ZAL: 171.2
+
+injured_out:  # missed Round 8 through injury or illness (box scores 29 Oct); coach decisions left out
+  - {club: ASV, player: Mathis Dossou-Yovo}
+  - {club: BAR, player: Yoan Makoundou}
+  - {club: BAS, player: Chris Duarte}
+  - {club: BAS, player: Tadas Sedekerskis}
+  - {club: BES, player: DaQuan Jeffries}
+  - {club: BES, player: Mady Sissoko}
+  - {club: BES, player: Vitto Brown}
+  - {club: BES, player: Lonnie Walker}
+  - {club: BES, player: Furkan Korkmaz}
+  - {club: DUB, player: Justin Anderson}
+  - {club: DUB, player: Mam Jaiteh}
+  - {club: DUB, player: Klemen Prepelic}
+  - {club: DUB, player: Thomas Walkup}
+  - {club: HTA, player: Bar Timor}
+  - {club: HTA, player: Tyler Ennis}
+  - {club: IST, player: Isaia Cordinier}
+  - {club: IST, player: Mike James}
+  - {club: IST, player: PJ Dozier}
+  - {club: MAD, player: Gabriel Deck}
+  - {club: MAD, player: Usman Garuba}
+  - {club: MAD, player: Nick Smith Jr.}
+  - {club: MIL, player: Alec Peters}
+  - {club: OLY, player: Evan Fournier}
+  - {club: OLY, player: Jean Montero}
+  - {club: OLY, player: Nikos Plotas}
+  - {club: OLY, player: Tyler Dorsey}
+  - {club: OLY, player: Nikola Milutinov}
+  - {club: PAM, player: Nate Reuvers}
+  - {club: PAN, player: Eleftherios Mantzoukas}
+  - {club: PAN, player: Nikos Rogkavopoulos}
+  - {club: PAR, player: Tonye Jekiri}
+  - {club: PAR, player: Derek Willis}
+  - {club: PAR, player: Vanja Marinkovic}
+  - {club: PRS, player: Frank Ntilikina}
+  - {club: PRS, player: TJ Warren}
+  - {club: PRS, player: Tyson Etienne}
+  - {club: RED, player: Stefan Miljenovic}
+  - {club: TEL, player: Iffe Lundberg}
+  - {club: TEL, player: Gur Lavi}
+  - {club: ZAL, player: Nigel Williams-Goss}
