@@ -111,3 +111,41 @@ totals:  # expected game total from over/under lines (BetExplorer, 29 Oct 16:45)
     OLY-MIL: 169.1
     BAR-PAM: 183.2
     VIR-BES: 176.1
+
+injured_out:  # missed Round 9 through injury, illness or suspension (box scores 3 Nov); coach decisions left out
+  - {club: ASV, player: Mathis Dossou-Yovo}
+  - {club: BAR, player: Juan Nunez}
+  - {club: BAR, player: Umoja Gibson}
+  - {club: BAR, player: Yoan Makoundou}
+  - {club: BAS, player: Rodions Kurucs}
+  - {club: BAS, player: Tadas Sedekerskis}
+  - {club: BAS, player: Chris Duarte}
+  - {club: BES, player: Devon Dotson}
+  - {club: BES, player: Furkan Korkmaz}
+  - {club: BES, player: Ante Zizic}
+  - {club: DUB, player: Thomas Walkup}
+  - {club: DUB, player: Justin Anderson}
+  - {club: DUB, player: Klemen Prepelic}
+  - {club: HTA, player: Bar Timor}
+  - {club: HTA, player: Tyler Ennis}
+  - {club: IST, player: Isaia Cordinier}
+  - {club: IST, player: Mike James}
+  - {club: IST, player: PJ Dozier}
+  - {club: MAD, player: Gabriel Deck}
+  - {club: MAD, player: Usman Garuba}
+  - {club: OLY, player: Jean Montero}
+  - {club: OLY, player: Evan Fournier}
+  - {club: OLY, player: Tyler Dorsey}
+  - {club: PAN, player: Eleftherios Mantzoukas}
+  - {club: PAN, player: Nikos Rogkavopoulos}
+  - {club: PAR, player: Tonye Jekiri}
+  - {club: PAR, player: Derek Willis}
+  - {club: PAR, player: Vanja Marinkovic}
+  - {club: PRS, player: TJ Warren}
+  - {club: PRS, player: Jared Rhoden}
+  - {club: PRS, player: Daulton Hommes}
+  - {club: RED, player: Stefan Miljenovic}
+  - {club: TEL, player: John DiBartolomeo}
+  - {club: TEL, player: Iffe Lundberg}
+  - {club: VIR, player: Tommaso Baldasso}
+  - {club: ZAL, player: Nigel Williams-Goss}
