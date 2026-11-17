@@ -1,0 +1,150 @@
+# Round 11 (11-13 Nov 2026), three game days. FINAL CHECK 11 Nov 12:15: tracker 10 Nov 20:52
+# (Jekiri back, Kurucs cleared, Nowell out), RotoWire 10 Nov, OddsPapi lines 11 Nov.
+# FIRST PASS 10 Nov 01:40: Basketball Sphere tracker
+# (9 Nov 15:45), RotoWire news to 9 Nov, Round 10 box scores. Lines and totals from OddsPapi
+# (snapshot 9 Nov 23:38 UTC, average across books): BetExplorer is blocked from Greece.
+round: 11
+
+availability:  # P(plays) in [11, 12, 13]
+  - {club: ASV, player: Juhann Begarin, p: [0.5, 0.8, 0.95], note: "doubtful (tracker 9 Nov)"}
+  - {club: ASV, player: Mathis Dossou-Yovo, p: [0.6, 0.8, 0.9], note: "adductor, day to day"}
+  - {club: BAR, player: Kevin Punter, p: [0.0, 0.0, 0.0], note: "ankle; at least 3 weeks, tracker says six"}
+  - {club: BAR, player: Tosan Evbuomwan, p: [0.0, 0.0, 0.3], note: "oblique tear, 3 weeks"}
+  - {club: BAR, player: Juan Nunez, p: [0.5, 0.85, 0.95], note: "ankle, doubtful"}
+  - {club: BAR, player: Umoja Gibson, p: [0.5, 0.8, 0.95], note: "knee, doubtful"}
+  - {club: BAR, player: Yoan Makoundou, p: [0.1, 0.2, 0.3], note: "knee"}
+  - {club: BAS, player: Marcio Santos, p: [0.0, 0.1, 0.4], note: "calf tear"}
+  - {club: BAS, player: Rodions Kurucs, p: [0.9, 0.95, 0.97], note: "cleared, in the squad for Wednesday"}
+  - {club: BAS, player: Tadas Sedekerskis, p: [0.1, 0.4, 0.7], note: "right thigh, out"}
+  - {club: BES, player: DaQuan Jeffries, p: [0.3, 0.7, 0.9], note: "wrist, early to mid-November"}
+  - {club: BES, player: Jaylen Nowell, p: [0.0, 0.3, 0.6], note: "fractured nose (tracker 10 Nov)"}
+  - {club: BES, player: Mady Sissoko, p: [0.0, 0.0, 0.0]}
+  - {club: BES, player: Vitto Brown, p: [0.0, 0.0, 0.0], note: "stale price-list entry"}
+  - {club: DUB, player: Davis Bertans, p: [0.1, 0.4, 0.7], note: "hamstring, out (tracker 9 Nov)"}
+  - {club: DUB, player: Thomas Walkup, p: [0.3, 0.6, 0.8], note: "back, out"}
+  - {club: DUB, player: Justin Anderson, p: [0.9, 0.95, 0.97], note: "cleared (tracker 10 Nov)"}
+  - {club: DUB, player: Mam Jaiteh, p: [0.0, 0.0, 0.0]}
+  - {club: DUB, player: Klemen Prepelic, p: [0.4, 0.6, 0.8], note: "back; missed R7-R10"}
+  - {club: HTA, player: Tomas Satoransky, p: [0.7, 0.9, 0.95], note: "concussion, day to day"}
+  - {club: HTA, player: Bar Timor, p: [0.5, 0.7, 0.85], note: "missed R10"}
+  - {club: HTA, player: Tomer Ginat, p: [0.7, 0.85, 0.95], note: "cleared, missed R8-R10"}
+  - {club: HTA, player: Tyler Ennis, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: PJ Dozier, p: [0.4, 0.8, 0.95], note: "back, early to mid-November"}
+  - {club: IST, player: Isaia Cordinier, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Mike James, p: [0.0, 0.0, 0.0]}
+  - {club: MAD, player: Facundo Campazzo, p: [0.2, 0.7, 0.95], note: "hamstring, out (tracker 9 Nov)"}
+  - {club: MAD, player: Chuma Okeke, p: [0.7, 0.9, 0.95], note: "calf and knee, day to day"}
+  - {club: MAD, player: Theo Maledon, p: [0.0, 0.3, 0.7], note: "knee sprain, mid-to-late November"}
+  - {club: MAD, player: Mikael Jantunen, p: [0.0, 0.0, 0.0], note: "ruptured plantar fascia"}
+  - {club: MAD, player: Gabriel Deck, p: [0.0, 0.1, 0.3]}
+  - {club: MAD, player: Usman Garuba, p: [0.0, 0.0, 0.0]}
+  - {club: MIL, player: Devin Booker, p: [0.0, 0.0, 0.0], note: "thigh tendon tear, about three months"}
+  - {club: MIL, player: Stefano Tonut, p: [0.6, 0.7, 0.8], note: "missed R7-R10, no reason found"}
+  - {club: OLY, player: Kostas Papanikolaou, p: [0.2, 0.8, 0.95], note: "abdominal tendon, about a week"}
+  - {club: OLY, player: Jean Montero, p: [0.0, 0.0, 0.0], note: "knee surgery, 5-6 months"}
+  - {club: OLY, player: Tyler Dorsey, p: [0.0, 0.0, 0.5], note: "disciplinary, until the end of November"}
+  - {club: OLY, player: Nikos Plotas, p: [0.3, 0.5, 0.7], note: "elbow"}
+  - {club: PAM, player: Nikola Mirotic, p: [0.5, 0.8, 0.95], note: "adductor, doubtful"}
+  - {club: PAM, player: Nate Reuvers, p: [0.0, 0.2, 0.4], note: "foot bone"}
+  - {club: PAN, player: Eleftherios Mantzoukas, p: [0.6, 0.85, 0.95], note: "missed R8-R10"}
+  - {club: PAN, player: Nikos Rogkavopoulos, p: [0.3, 0.6, 0.85], note: "hamstring"}
+  - {club: PAR, player: Luca Vildoza, p: [0.5, 0.8, 0.95], note: "hand, doubtful (tracker 9 Nov)"}
+  - {club: PAR, player: Kevarrius Hayes, p: [0.0, 0.6, 0.9], note: "shoulder, out Wednesday (Mozzart, 10 Nov)"}
+  - {club: PAR, player: Tonye Jekiri, p: [0.8, 0.9, 0.95], note: "expected back Wednesday (Mozzart, 10 Nov)"}
+  - {club: PAR, player: Derek Willis, p: [0.5, 0.8, 0.9], note: "back in practice, could play Wednesday"}
+  - {club: PAR, player: Jabari Parker, p: [0.0, 0.0, 0.0], note: "left Partizan"}
+  - {club: PRS, player: Daulton Hommes, p: [0.8, 0.95, 0.97], note: "concussion, missed R10; off the tracker"}
+  - {club: RED, player: Stefan Miljenovic, p: [0.3, 0.6, 0.8], note: "ankle, out"}
+  - {club: TEL, player: Gur Lavi, p: [0.2, 0.5, 0.7]}
+  - {club: TEL, player: Iffe Lundberg, p: [0.0, 0.0, 0.2], note: "quadriceps, 6-8 weeks from 18 Oct"}
+  - {club: VIR, player: Tommaso Baldasso, p: [0.3, 0.6, 0.85], note: "knee contusion, out"}
+  - {club: ZAL, player: Nigel Williams-Goss, p: [0.0, 0.4, 0.8], note: "hamstring, about 4 weeks"}
+  - {club: ZAL, player: Kaodirichi Akobundu-Ehiogu, p: [0.7, 0.8, 0.9], note: "selection"}
+
+moneylines:  # decimal (home, away); Round 11 OddsPapi averages 11 Nov 10:15 UTC, 9-10 kept for ratings
+  11:
+    PRS-ULK: [3.05, 1.37]
+    PAR-BAS: [1.26, 3.74]
+    TEL-HTA: [2.91, 1.39]
+    OLY-DUB: [1.43, 2.72]
+    MIL-ZAL: [2.17, 1.66]
+    PAM-MUN: [1.24, 3.88]
+    MAD-RED: [1.31, 3.33]
+    IST-VIR: [1.53, 2.43]
+    PAN-BAR: [1.16, 4.81]
+    ASV-BES: [1.78, 1.98]
+  10:
+    MAD-PAN: [2.10, 1.69]
+    IST-PRS: [1.35, 3.04]
+    ULK-BAS: [1.07, 7.54]
+    HTA-BAR: [1.45, 2.64]
+    ASV-MUN: [1.73, 2.03]
+    MIL-PAM: [2.24, 1.60]
+    BES-ZAL: [1.94, 1.80]
+    OLY-RED: [1.34, 3.06]
+    VIR-DUB: [1.98, 1.77]
+    PAR-TEL: [1.53, 2.40]
+  9:
+    RED-MUN: [1.29, 3.57]
+    TEL-PRS: [1.55, 2.45]
+    MAD-ULK: [1.40, 2.95]
+    DUB-HTA: [1.59, 2.33]
+    IST-PAN: [2.70, 1.45]
+    ZAL-PAR: [1.34, 3.21]
+    ASV-BAS: [1.53, 2.47]
+    OLY-MIL: [1.15, 5.36]
+    BAR-PAM: [1.74, 2.08]
+    VIR-BES: [1.51, 2.52]
+
+totals:  # expected game total from over/under lines (OddsPapi, 11 Nov 10:15 UTC): the
+  11:    # most-quoted line, moved by its over/under imbalance
+    PRS-ULK: 174.3
+    PAR-BAS: 168.2
+    TEL-HTA: 180.3
+    OLY-DUB: 169.6
+    MIL-ZAL: 170.5
+    PAM-MUN: 182.5
+    MAD-RED: 174.2
+    IST-VIR: 173.4
+    PAN-BAR: 171.0
+    ASV-BES: 177.0
+
+injured_out:  # missed Round 11 through injury, illness or suspension (box scores 14 Nov); coach decisions left out
+  - {club: BAR, player: Kevin Punter}
+  - {club: BAR, player: Tosan Evbuomwan}
+  - {club: BAR, player: Juan Nunez}
+  - {club: BAR, player: Yoan Makoundou}
+  - {club: BAS, player: Tadas Sedekerskis}
+  - {club: BAS, player: Marcio Santos}
+  - {club: BES, player: Jaylen Nowell}
+  - {club: BES, player: Berk Ugurlu}
+  - {club: DUB, player: Davis Bertans}
+  - {club: DUB, player: Thomas Walkup}
+  - {club: DUB, player: Klemen Prepelic}
+  - {club: DUB, player: Kosta Kondic}
+  - {club: HTA, player: Bar Timor}
+  - {club: HTA, player: Tyler Ennis}
+  - {club: IST, player: Isaia Cordinier}
+  - {club: IST, player: Mike James}
+  - {club: MAD, player: Facundo Campazzo}
+  - {club: MAD, player: Theo Maledon}
+  - {club: MAD, player: Mikael Jantunen}
+  - {club: MAD, player: Gabriel Deck}
+  - {club: MAD, player: Usman Garuba}
+  - {club: MIL, player: Devin Booker}
+  - {club: OLY, player: Kostas Papanikolaou}
+  - {club: OLY, player: Jean Montero}
+  - {club: OLY, player: Tyler Dorsey}
+  - {club: PAN, player: Eleftherios Mantzoukas}
+  - {club: PAN, player: Nikos Rogkavopoulos}
+  - {club: PAR, player: Kevarrius Hayes}
+  - {club: PAR, player: Derek Willis}
+  - {club: PAR, player: Lamar Stevens}
+  - {club: RED, player: Stefan Miljenovic}
+  - {club: TEL, player: Iffe Lundberg}
+  - {club: ULK, player: Nicolo Melli}
+  - {club: ULK, player: Sertac Sanli}
+  - {club: VIR, player: Tommaso Baldasso}
+  - {club: VIR, player: Daniel Hackett}
+  - {club: VIR, player: Davide Casarin}
+  - {club: ZAL, player: Nigel Williams-Goss}

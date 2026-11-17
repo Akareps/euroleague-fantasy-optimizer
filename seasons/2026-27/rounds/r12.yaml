@@ -1,0 +1,131 @@
+# Round 12 (17-18 Nov 2026), first of a double-round week. SECOND PASS 17 Nov 00:00: tracker 16 Nov
+# 14:19 (Milutinov, Melli, Thompson out), RotoWire 16 Nov (Maledon back domestically), lines 17 Nov.
+# (Round 13 on 19-20 Nov, then unlimited
+# transfers). FIRST PASS 14 Nov 12:00: Basketball Sphere tracker (13 Nov 23:03), RotoWire news to
+# 13 Nov, Round 11 box scores, Round 12 lines and totals and Round 13 lines (BetExplorer 14 Nov).
+# Faried out (hamstring, at least two games). New at Baskonia, not in the player pool: Kamenjas.
+round: 12
+
+availability:  # P(plays) in [12, 13, 14]
+  - {club: ASV, player: Juhann Begarin, p: [0.5, 0.7, 0.9], note: "doubtful (tracker 13 Nov)"}
+  - {club: BAR, player: Kevin Punter, p: [0.0, 0.0, 0.0], note: "ankle, six weeks (tracker)"}
+  - {club: BAR, player: Tosan Evbuomwan, p: [0.0, 0.1, 0.4], note: "oblique tear, 3 weeks"}
+  - {club: BAR, player: Juan Nunez, p: [0.6, 0.8, 0.9], note: "ankle, day to day"}
+  - {club: BAR, player: Yoan Makoundou, p: [0.1, 0.2, 0.3], note: "knee"}
+  - {club: BAR, player: Agustin Ubal, p: [0.7, 0.85, 0.95], note: "back; did not play R11"}
+  - {club: BAS, player: Kenneth Faried, p: [0.0, 0.0, 0.4], note: "hamstring; best case misses the next two games"}
+  - {club: BAS, player: Marcio Santos, p: [0.0, 0.2, 0.5], note: "calf tear"}
+  - {club: BAS, player: Tadas Sedekerskis, p: [0.2, 0.4, 0.7], note: "right thigh, out"}
+  - {club: BES, player: Berk Ugurlu, p: [0.2, 0.5, 0.8], note: "undisclosed, out"}
+  - {club: BES, player: Jaylen Nowell, p: [0.1, 0.3, 0.6], note: "fractured nose"}
+  - {club: BES, player: Mady Sissoko, p: [0.0, 0.0, 0.0]}
+  - {club: BES, player: Vitto Brown, p: [0.0, 0.0, 0.0], note: "stale price-list entry"}
+  - {club: DUB, player: Kosta Kondic, p: [0.2, 0.4, 0.7], note: "hip, out"}
+  - {club: DUB, player: Davis Bertans, p: [0.2, 0.4, 0.7], note: "hamstring, out"}
+  - {club: DUB, player: Thomas Walkup, p: [0.8, 0.9, 0.95], note: "back in the ABA league 16 Nov"}
+  - {club: DUB, player: Justin Anderson, p: [0.8, 0.9, 0.95], note: "cleared, did not play R11"}
+  - {club: DUB, player: Mam Jaiteh, p: [0.0, 0.0, 0.0]}
+  - {club: DUB, player: Klemen Prepelic, p: [0.4, 0.6, 0.8], note: "back; missed R7-R11"}
+  - {club: HTA, player: Bar Timor, p: [0.5, 0.7, 0.85], note: "missed R10-R11"}
+  - {club: HTA, player: Tyler Ennis, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Bruno Fernando, p: [0.4, 0.5, 0.7], note: "calf, MRI pending (tracker 13 Nov)"}
+  - {club: IST, player: Isaia Cordinier, p: [0.0, 0.0, 0.0]}
+  - {club: IST, player: Mike James, p: [0.0, 0.0, 0.0]}
+  - {club: MAD, player: Facundo Campazzo, p: [0.3, 0.6, 0.9], note: "hamstring, out"}
+  - {club: MAD, player: Theo Maledon, p: [0.8, 0.9, 0.95], note: "18 pts in 17 min in the Spanish league 16 Nov"}
+  - {club: MAD, player: Mikael Jantunen, p: [0.0, 0.0, 0.0], note: "ruptured plantar fascia"}
+  - {club: MAD, player: Gabriel Deck, p: [0.0, 0.1, 0.3]}
+  - {club: MAD, player: Usman Garuba, p: [0.0, 0.0, 0.0]}
+  - {club: MIL, player: Devin Booker, p: [0.0, 0.0, 0.0], note: "thigh tendon tear, about three months"}
+  - {club: MIL, player: Stefano Tonut, p: [0.6, 0.7, 0.8], note: "missed R7-R11, no reason found"}
+  - {club: OLY, player: Kostas Papanikolaou, p: [0.9, 0.95, 0.97], note: "cleared (tracker 16 Nov)"}
+  - {club: OLY, player: Jean Montero, p: [0.0, 0.0, 0.0], note: "knee surgery, 5-6 months"}
+  - {club: OLY, player: Tyler Dorsey, p: [0.0, 0.0, 0.5], note: "disciplinary, until the end of November"}
+  - {club: OLY, player: Nikos Plotas, p: [0.5, 0.7, 0.8], note: "elbow; seconds in the Greek league 9 Nov"}
+  - {club: PAM, player: Nikola Mirotic, p: [0.3, 0.6, 0.85], note: "adductor, out"}
+  - {club: PAM, player: Nate Reuvers, p: [0.0, 0.2, 0.4], note: "foot bone"}
+  - {club: PAN, player: Eleftherios Mantzoukas, p: [0.6, 0.8, 0.9], note: "missed R8-R11"}
+  - {club: PAN, player: Nikos Rogkavopoulos, p: [0.8, 0.9, 0.95], note: "14 pts in the Greek league 16 Nov"}
+  - {club: PAR, player: Ethan Thompson, p: [0.0, 0.5, 0.8], note: "hip and back contusion, out (tracker 16 Nov)"}
+  - {club: PAR, player: Lamar Stevens, p: [0.5, 0.8, 0.95], note: "illness, doubtful"}
+  - {club: PAR, player: Derek Willis, p: [0.6, 0.8, 0.9], note: "ankle, day to day"}
+  - {club: PAR, player: Kevarrius Hayes, p: [0.5, 0.8, 0.95], note: "shoulder, doubtful"}
+  - {club: PAR, player: Jabari Parker, p: [0.0, 0.0, 0.0], note: "left Partizan"}
+  - {club: RED, player: Stefan Miljenovic, p: [0.3, 0.6, 0.8], note: "ankle, out"}
+  - {club: TEL, player: Yam Madar, p: [0.8, 0.9, 0.95], note: "broken nose, day to day"}
+  - {club: TEL, player: Oshae Brissett, p: [0.6, 0.8, 0.9], note: "back, doubtful"}
+  - {club: TEL, player: Gur Lavi, p: [0.2, 0.4, 0.6]}
+  - {club: TEL, player: Iffe Lundberg, p: [0.0, 0.1, 0.3], note: "quadriceps, 6-8 weeks from 18 Oct"}
+  - {club: ULK, player: Nicolo Melli, p: [0.0, 0.2, 0.4], note: "meniscus, out; surgery unclear (Eurohoops 16 Nov)"}
+  - {club: ULK, player: Sertac Sanli, p: [0.2, 0.5, 0.8], note: "ankle, out"}
+  - {club: VIR, player: Daniel Hackett, p: [0.9, 0.95, 0.97], note: "cleared after flu"}
+  - {club: VIR, player: Davide Casarin, p: [0.0, 0.0, 0.0], note: "bone bruise, 8 weeks"}
+  - {club: VIR, player: Tommaso Baldasso, p: [0.9, 0.95, 0.97], note: "cleared; 9 pts domestically 16 Nov"}
+  - {club: ZAL, player: Nigel Williams-Goss, p: [0.2, 0.5, 0.8], note: "hamstring, about 4 weeks"}
+  - {club: OLY, player: Nikola Milutinov, p: [0.0, 0.2, 0.6], note: "fractured finger, out vs Maccabi (Eurohoops 16 Nov)"}
+  - {club: ULK, player: Braxton Key, p: [0.4, 0.7, 0.9], note: "dislocated finger, doubtful"}
+  - {club: HTA, player: Bruno Caboclo, p: [0.1, 0.4, 0.7], note: "minor calf tear, out"}
+  - {club: ASV, player: Joel Bolomboy, p: [0.0, 0.1, 0.3], note: "facial injury, several weeks"}
+  - {club: ZAL, player: Kaodirichi Akobundu-Ehiogu, p: [0.7, 0.8, 0.9], note: "selection"}
+
+minutes_expert:  # first EuroLeague game back
+  - {club: MAD, player: Theo Maledon, minutes: 20.0}
+
+moneylines:  # decimal (home, away); Rounds 12-13 BetExplorer averages 17 Nov 00:00, 10-11 kept for ratings
+  12:
+    DUB-IST: [1.27, 3.57]
+    TEL-OLY: [3.17, 1.33]
+    ULK-ASV: [1.12, 5.65]
+    ZAL-MUN: [1.20, 4.27]
+    BAR-PRS: [1.36, 2.99]
+    MIL-RED: [1.98, 1.77]
+    BAS-HTA: [3.37, 1.29]
+    PAR-PAM: [1.92, 1.82]
+    VIR-PAN: [3.92, 1.23]
+    BES-MAD: [2.81, 1.40]
+  13:
+    TEL-DUB: [2.51, 1.48]
+    ZAL-PAN: [1.98, 1.75]
+    MUN-BAS: [1.32, 3.14]
+    MIL-ULK: [2.70, 1.42]
+    PRS-HTA: [2.52, 1.48]
+    PAM-VIR: [1.24, 3.71]
+    IST-ASV: [1.42, 2.70]
+    OLY-MAD: [1.82, 1.91]
+    BAR-RED: [1.76, 1.95]
+    PAR-BES: [1.42, 2.68]
+  11:
+    PRS-ULK: [3.05, 1.37]
+    PAR-BAS: [1.26, 3.74]
+    TEL-HTA: [2.91, 1.39]
+    OLY-DUB: [1.43, 2.72]
+    MIL-ZAL: [2.17, 1.66]
+    PAM-MUN: [1.24, 3.88]
+    MAD-RED: [1.31, 3.33]
+    IST-VIR: [1.53, 2.43]
+    PAN-BAR: [1.16, 4.81]
+    ASV-BES: [1.78, 1.98]
+  10:
+    MAD-PAN: [2.10, 1.69]
+    IST-PRS: [1.35, 3.04]
+    ULK-BAS: [1.07, 7.54]
+    HTA-BAR: [1.45, 2.64]
+    ASV-MUN: [1.73, 2.03]
+    MIL-PAM: [2.24, 1.60]
+    BES-ZAL: [1.94, 1.80]
+    OLY-RED: [1.34, 3.06]
+    VIR-DUB: [1.98, 1.77]
+    PAR-TEL: [1.53, 2.40]
+
+totals:  # expected game total from over/under lines (BetExplorer, 14 Nov 12:00): the
+  12:    # most-quoted line, moved by its over/under imbalance
+    DUB-IST: 173.5
+    TEL-OLY: 172.7
+    ULK-ASV: 165.5
+    ZAL-MUN: 169.3
+    BAR-PRS: 185.6
+    MIL-RED: 166.7
+    BAS-HTA: 179.7
+    PAR-PAM: 174.5
+    VIR-PAN: 170.8
+    BES-MAD: 175.6

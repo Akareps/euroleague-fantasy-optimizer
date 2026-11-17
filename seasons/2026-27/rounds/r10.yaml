@@ -112,3 +112,41 @@ totals:  # expected game total from over/under lines (BetExplorer, 3 Nov 13:00):
     OLY-RED: 169.2
     VIR-DUB: 173.4
     PAR-TEL: 170.7
+
+injured_out:  # missed Round 10 through injury, illness or suspension (box scores 8 Nov); coach decisions left out
+  - {club: ASV, player: Mathis Dossou-Yovo}
+  - {club: BAR, player: Juan Nunez}
+  - {club: BAR, player: Umoja Gibson}
+  - {club: BAR, player: Yoan Makoundou}
+  - {club: BAS, player: Rodions Kurucs}
+  - {club: BAS, player: Tadas Sedekerskis}
+  - {club: BAS, player: Marcio Santos}
+  - {club: BES, player: Furkan Korkmaz}
+  - {club: DUB, player: Thomas Walkup}
+  - {club: DUB, player: Justin Anderson}
+  - {club: DUB, player: Klemen Prepelic}
+  - {club: HTA, player: Tomas Satoransky}
+  - {club: HTA, player: Bar Timor}
+  - {club: HTA, player: Tyler Ennis}
+  - {club: IST, player: PJ Dozier}
+  - {club: IST, player: Isaia Cordinier}
+  - {club: IST, player: Mike James}
+  - {club: MAD, player: Theo Maledon}
+  - {club: MAD, player: Mikael Jantunen}
+  - {club: MAD, player: Facundo Campazzo}
+  - {club: MAD, player: Gabriel Deck}
+  - {club: MAD, player: Usman Garuba}
+  - {club: MIL, player: Devin Booker}
+  - {club: OLY, player: Jean Montero}
+  - {club: OLY, player: Tyler Dorsey}
+  - {club: PAN, player: Eleftherios Mantzoukas}
+  - {club: PAN, player: Nikos Rogkavopoulos}
+  - {club: PAR, player: Tonye Jekiri}
+  - {club: PAR, player: Derek Willis}
+  - {club: PAR, player: Kevarrius Hayes}
+  - {club: PRS, player: Daulton Hommes}
+  - {club: RED, player: Stefan Miljenovic}
+  - {club: TEL, player: Iffe Lundberg}
+  - {club: TEL, player: Gur Lavi}
+  - {club: VIR, player: Tommaso Baldasso}
+  - {club: ZAL, player: Nigel Williams-Goss}
