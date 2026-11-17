@@ -545,3 +545,89 @@ def test_position_correction_runs_through_projection_and_backtest(tmp_path, rule
 
 def test_this_season_uses_the_correction():
     assert load_season(SEASON).position_prior_games == 150.0
+
+
+# ---------------------------------------------------------------- rosters and registrations
+def _roster_data(tmp_path, people, public=None):
+    season = load_season(SEASON)
+    data = SeasonData(tmp_path)
+    data.prior_dir.mkdir(parents=True)
+    (data.prior_dir / "prices_round_01.csv").write_text(
+        "rank,player,club,pos,price\n1,Kenan Kamenjas,Dubai,C,6.0\n2,Chris Silva,Fenerbahce,C,7.0\n",
+        encoding="utf-8",
+    )
+    (data.prior_dir / "people_E2026.json").write_text(json.dumps({"data": people}))
+    (data.prior_dir / "stats_E2025_acc.json").write_text(json.dumps({"players": []}))
+    if public:
+        (data.root / "archive" / "tables").mkdir(parents=True)
+        (data.root / "archive" / "tables" / "prices_public.jsonl").write_text(
+            "\n".join(json.dumps({"captured_at": "2026-11-17T00:00:00+00:00", **r}) for r in public)
+        )
+    return season, data
+
+
+def _person(code, name, club, start, active=True, end="2027-06-30", pos="Center"):
+    return {"person": {"code": code, "name": name}, "club": {"code": club}, "active": active,
+            "startDate": start, "endDate": end, "positionName": pos}  # fmt: skip
+
+
+def test_a_transfer_takes_the_active_registration_not_the_stale_list_club(tmp_path):
+    season, data = _roster_data(tmp_path, [
+        _person("008325", "KAMENJAS, KENAN", "DUB", "2026-08-12T07:41:25", active=False,
+                end="2026-09-17T14:39:15"),
+        _person("008325", "KAMENJAS, KENAN", "BAS", "2026-11-13T11:03:35"),
+        _person("007000", "SILVA, CHRIS", "ULK", "2026-08-01T00:00:00", active=False, end="2026-11-16"),
+        _person("007000", "SILVA, CHRIS", "PAR", "2026-11-16T10:00:00"),
+    ])  # fmt: skip
+    _, _, report = data.join_prior(season)
+    rows = {r["name"]: r for r in json.loads((data.prior_dir / "joined.json").read_text())}
+    assert (rows["Kenan Kamenjas"]["club"], rows["Kenan Kamenjas"]["registered_from"]) == (
+        "BAS",
+        "2026-11-13",
+    )
+    assert rows["Kenan Kamenjas"]["registered_until"] is None
+    assert rows["Chris Silva"]["club"] == "PAR"
+    assert report["moved"] == ["Kenan Kamenjas (DUB -> BAS)", "Chris Silva (ULK -> PAR)"]
+
+
+def test_a_new_arrival_is_added_priced_from_the_public_list(tmp_path):
+    season, data = _roster_data(
+        tmp_path,
+        [_person("014213", "PAYNE, CAMERON", "IST", "2026-10-07T15:09:46", pos="Guard"),
+         _person("013000", "WALKER IV, LONNIE", "BES", "2026-10-20T00:00:00", pos="Guard"),
+         _person("013001", "NEWCOMER, NOBODY", "BES", "2026-11-01T00:00:00", pos="Forward")],
+        public=[{"player": "Cameron Payne", "club": "Anadolu Efes", "pos": "G", "price": 11.4},
+                {"player": "Lonnie Walker", "club": "Besiktas", "pos": "G", "price": 9.9}],
+    )  # fmt: skip
+    _, _, report = data.join_prior(season)
+    rows = {r["name"]: r for r in json.loads((data.prior_dir / "joined.json").read_text())}
+    assert (
+        rows["Cameron Payne"]["club"],
+        rows["Cameron Payne"]["price"],
+        rows["Cameron Payne"]["pos"],
+    ) == ("IST", 11.4, "G")
+    assert rows["Lonnie Walker IV"]["price"] == 9.9  # matched without the suffix
+    assert rows["Nobody Newcomer"]["price_unknown"] and rows["Nobody Newcomer"]["pos"] == "F"
+    assert report["unpriced"] == ["Nobody Newcomer (BES)"]
+
+
+def test_absences_before_registration_are_not_coach_decisions():
+    p = _player(base_min=20.0)
+    p["registered_from"] = "2026-10-05"
+    games = {"g1": _game("g1", 1, 2), "g2": _game("g2", 2, 2)}
+    games["g1"]["localDate"], games["g2"]["localDate"] = (
+        "2026-10-01T20:00:00",
+        "2026-10-08T20:00:00",
+    )
+    # Round 1 (before he joined) has no line for him; round 2 he plays 24 minutes.
+    update_with_evidence([p], games, {1: {}, 2: {"1": _line("g2", 24.0, 12.0)}}, {}, W)
+    assert p["base_min"] == pytest.approx((0.5 * 20 + 24) / 1.5)  # round 1 not counted as 0
+
+
+def test_unregistered_players_are_off_the_roster_that_round():
+    from elfantasy.season.model import registered
+
+    p = {"registered_from": "2026-11-13", "registered_until": None}
+    assert not registered(p, "2026-11-12") and registered(p, "2026-11-17")
+    assert not registered({"registered_until": "2026-10-24"}, "2026-11-01")
+    assert registered({}, "2026-11-01")

@@ -83,17 +83,24 @@ def fetch(
     season_dir: Path = SeasonDirOpt,
     config: Path = ConfigOpt,
 ) -> None:
-    """Download the schedule and the box scores of every finished round."""
+    """Download the schedule, the box scores of every finished round and
+    today's rosters; rebuild the player pool from them and report changes."""
 
     _, season, data = _context(season_dir, config)
     try:
         if prior:
             report.console.print(f"prior: saved {', '.join(data.fetch_prior(season))}")
-            n, unmatched = data.join_prior(season)
-            report.console.print(
-                f"prior: joined {n} priced players and coaches; unmatched: {unmatched or '-'}"
-            )
         report.console.print(f"schedule: {data.fetch_games(season)} games")
+        report.console.print(f"rosters: {data.refresh_rosters(season)} registrations")
+        if (data.prior_dir / "prices_round_01.csv").is_file():
+            n, unmatched, changes = data.join_prior(season)
+            report.console.print(
+                f"player pool: {n} players and coaches; opening-list names not on a roster: "
+                f"{', '.join(unmatched) or '-'}"
+            )
+            for label, names in changes.items():
+                if names:
+                    report.console.print(f"  {label}: {'; '.join(names)}")
         by_round: dict[int, list[bool]] = {}
         for g in data.games().values():
             by_round.setdefault(int(g["round"]), []).append(bool(g["played"]))
@@ -103,6 +110,12 @@ def fetch(
             if data.box_file(rnd).is_file() and not refetch:
                 continue
             report.console.print(f"round {rnd}: {data.fetch_boxes(season, rnd)} box-score lines")
+        gaps = data.pool_gaps()
+        if gaps:
+            report.console.print(
+                f"[red]played recently but missing from the pool (or under another club): "
+                f"{'; '.join(gaps)}[/]"
+            )
     except SeasonDataError as exc:
         _fail(exc)
 

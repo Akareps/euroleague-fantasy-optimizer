@@ -234,6 +234,25 @@ def prior_group(p: dict) -> str:
 
 
 # ==================================================================== evidence
+def round_dates(games: dict[str, dict]) -> dict[int, str]:
+    """round -> date of its first game (YYYY-MM-DD)."""
+    out: dict[int, str] = {}
+    for g in games.values():
+        day = str(g.get("localDate") or g.get("date") or "")[:10]
+        if day and (g["round"] not in out or day < out[g["round"]]):
+            out[g["round"]] = day
+    return out
+
+
+def registered(p: dict, day: str | None) -> bool:
+    """Was the player registered with his (current) club on ``day``? Unknown
+    dates count as registered all season."""
+    start, until = p.get("registered_from"), p.get("registered_until")
+    if not day:
+        return True
+    return (not start or start <= day) and (not until or day <= until)
+
+
 def garbage_minutes(margin: float) -> float:
     """Fourth-quarter minutes the top five lose in a blowout (0.55 per point beyond 9)."""
     return min(max(0.55 * (abs(margin) - 9.0), 0.0), 9.0)
@@ -268,6 +287,7 @@ def update_with_evidence(
         for (game_id, _), grp in in_game.items():
             for q in sorted(grp, key=lambda q: -q["base_min"])[:5]:
                 top5.add((game_id, id(q)))
+    dates = round_dates(games)
     for p in players:
         h = p.get("hist")
         strong = bool(h and h.get("same_club") and h.get("gp", 0) >= 10)
@@ -283,6 +303,13 @@ def update_with_evidence(
             if k in injured.get(rnd, set()) and not (ln and ln["minutes"] > 0):
                 continue
             wt = weights.recency ** (rnd - 1)
+            if not registered(p, dates.get(rnd)):
+                # Not with this club yet (or any more): an absence says nothing
+                # about his role here, and minutes elsewhere were another role.
+                # Games played elsewhere still tell us his PIR per minute.
+                if ln and ln["minutes"] > 0:
+                    pirs.append((wt, ln["minutes"], ln["pir"] or 0.0))
+                continue
             if ln is None:
                 mins.append((wt, 0.0))  # not in the 12: a coach's decision
                 continue
@@ -579,7 +606,7 @@ def estimate_prices(players, coaches, target, data, season, rules, games, privat
     for x in players + coaches:
         if _pkey(x) in given:
             continue
-        base, price = 1, x["price"]  # the opening price
+        base, price = x.get("price_round") or 1, x["price"]  # opening (or first known) price
         for r in sorted(lists):
             if r <= target and _pkey(x) in lists[r]:
                 base, price = r, lists[r][_pkey(x)]
@@ -691,6 +718,9 @@ class SeasonModel:
 
     def raw_round(self, players, fit_info, target, round_no, k):
         ri = self.round_inputs(target)
+        day = round_dates(self.games).get(round_no)
+        # Only players registered by then are on the roster that splits the minutes.
+        players = [p for p in players if registered(p, day)]
         return project_round(
             players, fit_info, self.games, round_no, ri.availability, ri.moneylines.get(round_no, {}),
             ri.rating_lines(), self.season.outrights, k=k,
