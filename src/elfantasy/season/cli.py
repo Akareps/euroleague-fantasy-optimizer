@@ -8,6 +8,7 @@ A round, start to finish::
     elfantasy season project --round N     # projections for N and the next rounds
     elfantasy season plan --round N        # transfers, lineup, Turn plan
     elfantasy season compare --round N     # the named plans in the private file
+    elfantasy season archive --lines N     # snapshot odds, news, prices; print round N's lines
     # after the round: add `injured_out` to rNN.yaml, then fetch again
 """
 
@@ -50,6 +51,17 @@ def _context(season_dir: Path | None, config: Path | None):
         GameRules.from_settings(settings),
         season,
         SeasonData.for_season(settings.data_dir, season),
+    )
+
+
+def _archive_projection(data: SeasonData, round_no: int, result: dict) -> None:
+    """A dated copy for later: the files in out/ are overwritten by each run."""
+    from elfantasy.season.archive import Archive
+
+    Archive(data.root / "archive").raw(
+        "projections",
+        f"round_{round_no:02d}",
+        json.dumps(result, ensure_ascii=False, default=float),
     )
 
 
@@ -118,6 +130,7 @@ def project(
         _fail(exc)
     out = data.projections_file(round_no)
     save_projection(result, out)
+    _archive_projection(data, round_no, result)
 
     cal = Table(title="Calibration (re-projected past rounds)", header_style="bold")
     for col in ("group", "tier mean -> correction (n)"):
@@ -168,6 +181,7 @@ def _planner(round_no, season_dir, config):
     except (SeasonDataError, SeasonInputError) as exc:
         _fail(exc)
     save_projection(result, data.projections_file(round_no))
+    _archive_projection(data, round_no, result)
     planner = RoundPlanner(result, rules, private, gamma=season.gamma,
                            credit_per_round=season.credit_per_round,
                            credit_weight=season.credit_weight, last_round=season.last_round,
@@ -269,9 +283,10 @@ def backtest(
     report.console.print(table)
     report.console.print(
         "[dim]Model = calibrated on earlier rounds only; price = actual ~ price fitted on earlier "
-        "rounds (none for round 1); mix = the two blended by price_blend; mix+opp = the mix plus "
-        "each opponent's record against the position (a candidate, not used in projections). * = a "
-        "round used to choose the evidence weights.[/]"
+        "rounds (none for round 1); mix = the forecast used: the two blended by price_blend, with "
+        "the position-and-price correction; mix+opp = the mix plus each opponent's record against "
+        "the position (a candidate, not used in projections). * = a round used to choose the "
+        "evidence weights.[/]"
     )
     scored = [s for s in scores if s.blend and s.opp_adjusted]
     if scored:
@@ -279,6 +294,12 @@ def backtest(
         def mean(f):
             return float(np.mean([f(s) for s in scored]))
 
+        report.console.print(
+            f"Position-and-price correction, rounds {scored[0].round}-{scored[-1].round}: top-{top} "
+            f"{mean(lambda s: s.plain_blend.top):.2f} -> {mean(lambda s: s.blend.top):.2f}, RMSE "
+            f"{mean(lambda s: s.plain_blend.rmse):.3f} -> {mean(lambda s: s.blend.rmse):.3f}, rho "
+            f"{mean(lambda s: s.plain_blend.rho):.3f} -> {mean(lambda s: s.blend.rho):.3f}"
+        )
         report.console.print(
             f"Opponent-vs-position candidate, rounds {scored[0].round}-{scored[-1].round}: top-{top} "
             f"{mean(lambda s: s.blend.top):.2f} -> {mean(lambda s: s.opp_adjusted.top):.2f}, RMSE "
@@ -298,3 +319,40 @@ def backtest(
         )
     if save:
         save.write_text(json.dumps([asdict(s) for s in scores], indent=1), encoding="utf-8")
+
+
+@app.command()
+def archive(
+    only: list[str] = typer.Option(
+        None, "--only", help="Collect only these: odds, domestic, news, prices, pbp (repeatable)."
+    ),
+    lines: int = typer.Option(
+        None, "--lines", help="Afterwards print this round's lines and totals for its round file."
+    ),
+    season_dir: Path = SeasonDirOpt,
+    config: Path = ConfigOpt,
+) -> None:
+    """Snapshot outside sources (odds, news, prices, play-by-play) for later backtests."""
+
+    from elfantasy.season.archive import COLLECTORS, Archive, collect, round_lines
+
+    _, season, data = _context(season_dir, config)
+    unknown = set(only or ()) - set(COLLECTORS)
+    if unknown:
+        _fail(SeasonInputError(f"unknown collector(s): {', '.join(sorted(unknown))}"))
+    store = Archive(data.root / "archive")
+    try:
+        games = data.games()
+    except SeasonDataError as exc:
+        _fail(exc)
+    collect(store, games, season.code, only=only,
+            log=lambda m: report.console.print(f"[dim]{m}[/]"))  # fmt: skip
+    report.console.print(f"[dim]Archived in {store.root}[/]")
+    if lines is not None:
+        money, totals = round_lines(store, lines)
+        print(f"moneylines:\n  {lines}:")
+        for k, (h, a) in sorted(money.items()):
+            print(f"    {k}: [{h:.2f}, {a:.2f}]")
+        print(f"totals:\n  {lines}:")
+        for k, v in sorted(totals.items()):
+            print(f"    {k}: {v}")

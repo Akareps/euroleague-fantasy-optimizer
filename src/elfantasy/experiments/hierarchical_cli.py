@@ -22,6 +22,7 @@ from elfantasy.experiments.history import (
     load_history,
     utc,
 )
+from elfantasy.experiments.oddspapi import read_snapshot
 from elfantasy.experiments.prop_blend import projection_cutoff
 from elfantasy.season.cli import ConfigOpt, RoundOpt, SeasonDirOpt, _context, _fail
 from elfantasy.season.inputs import key, load_private
@@ -288,7 +289,7 @@ def compare(
         )
         if not private or not private.squad:
             raise ValueError("three-way comparison requires a private squad")
-        raw = json.loads(snapshot.read_text(encoding="utf-8"))
+        raw = read_snapshot(snapshot)
         odds_cfg = ExperimentSettings.load(
             REPO_ROOT / "experiments" / "oddspapi-v1" / "experiment.yaml"
         )

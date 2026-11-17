@@ -6,6 +6,8 @@ the catalogue, or hasOdds=True, is not evidence of a usable player forecast.
 
 from __future__ import annotations
 
+import gzip
+import json
 import math
 import os
 import re
@@ -23,6 +25,22 @@ EXPERIMENT = "oddspapi-v1"
 BASE_URL = "https://api.oddspapi.io/v4"
 FULL_GAME_PERIODS = {"result", "fulltime", "full time", "match", "full game"}
 COMPONENTS = ("points", "rebounds", "assists")
+
+
+def read_snapshot(path: Path) -> dict:
+    """A saved snapshot, plain or gzipped JSON."""
+    if path.suffix == ".gz":
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
+            return json.load(fh)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def write_snapshot(path: Path, snapshot: dict) -> Path:
+    """Gzipped JSON: a round's raw boards run to hundreds of megabytes."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(path, "wt", encoding="utf-8") as fh:
+        json.dump(snapshot, fh, ensure_ascii=False)
+    return path
 
 
 class OddsPapiError(RuntimeError):

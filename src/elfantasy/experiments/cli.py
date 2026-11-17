@@ -21,6 +21,8 @@ from elfantasy.experiments.oddspapi import (
     fetch_snapshot,
     parse_board,
     read_api_key,
+    read_snapshot,
+    write_snapshot,
 )
 from elfantasy.experiments.prop_blend import (
     ExperimentSettings,
@@ -84,11 +86,13 @@ def coverage(
         cfg = _settings(settings)
         games = [g for g in model.games.values() if g["round"] == round_no]
         if snapshot_file:
-            snapshot = json.loads(snapshot_file.read_text(encoding="utf-8"))
+            snapshot = read_snapshot(snapshot_file)
         else:
             key = read_api_key(api_key_file or season.root / "private" / "oddspapi.key")
-            snapshot = fetch_snapshot(OddsPapiClient(key), games, max_fixtures=max_fixtures)
-        _write(out / "snapshot.json", snapshot)
+            # OddsPapi refused calls 1 s apart (8 Nov); 6 s has always gone through.
+            client = OddsPapiClient(key, min_interval=6.0)
+            snapshot = fetch_snapshot(client, games, max_fixtures=max_fixtures)
+        write_snapshot(out / "snapshot.json.gz", snapshot)
         matches, unmatched = match_fixtures(snapshot, model, cfg)
         roster = json.loads((data.prior_dir / "joined.json").read_text(encoding="utf-8"))
         players = [{**p, "proj": {}} for p in roster if p["pos"] != "HC"]
@@ -171,7 +175,7 @@ def _prepare(round_no, snapshot_path, as_of, settings, season_dir, config):
         cutoff = projection_cutoff(model, round_no, as_of)
         private = load_private(season.root, round_no)
         baseline = model.project(round_no, private)
-        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8")) if snapshot_path else None
+        snapshot = read_snapshot(snapshot_path) if snapshot_path else None
         experiment, audit = apply_snapshot(baseline, snapshot, model, cfg, cutoff)
     except (SeasonDataError, SeasonInputError, ValueError, OSError) as exc:
         _fail(exc)

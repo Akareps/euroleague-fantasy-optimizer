@@ -282,7 +282,20 @@ elfantasy season project --round 5      # projections for Rounds 5-7
 elfantasy season plan --round 5         # transfers, lineup, Turn plan
 elfantasy season compare --round 5      # named plans head to head
 elfantasy season backtest               # every finished round, chronologically
+elfantasy season archive --lines 5      # snapshot odds, news, prices, play-by-play
 ```
+
+`season archive` keeps dated copies of everything a later backtest might want,
+in the data dir under `archive/`. Each response is stored exactly as received.
+Parsed rows go into JSON-lines tables:
+- **odds_lines:** EuroLeague and domestic-league moneylines, opening and closing.
+- **odds_markets:** EuroLeague over/under and handicap consensus.
+- **injuries:** the injury tracker.
+- **news:** RotoWire items.
+- **prices_public:** the public fantasy price list.
+
+It also saves the EuroLeague play-by-play and shot data of every finished game,
+and a dated copy of every projection run.
 
 Its model starts from a preseason prior (last season, opening prices, named
 role evidence), updates on every game played, and calibrates against
@@ -371,7 +384,9 @@ Only the manual availability provider is enabled by default. The HTML scraper is
 a configurable tool, not a set of shipped targets — check a site's terms of
 service and `robots.txt` before pointing it anywhere, and prefer official or
 licensed feeds. The HTTP client caches on disk, throttles per host, and
-identifies itself.
+identifies itself. The season archive's sources (BetExplorer, Basketball
+Sphere, RotoWire, the EuroLeague live API) allowed this access in robots.txt
+when it was written; check them again before reusing it.
 
 ## Development
 
