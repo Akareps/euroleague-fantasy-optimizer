@@ -1,4 +1,6 @@
-# Round 12 (17-18 Nov 2026), first of a double-round week. SECOND PASS 17 Nov 00:00: tracker 16 Nov
+# Round 12 (17-18 Nov 2026), first of a double-round week. FINAL CHECK 17 Nov 12:40: archive run
+# (lines, totals, tracker 17 Nov 00:59, RotoWire), OddsPapi props 17 Nov 11:38 UTC.
+# SECOND PASS 17 Nov 00:00: tracker 16 Nov
 # 14:19 (Milutinov, Melli, Thompson out), RotoWire 16 Nov (Maledon back domestically), lines 17 Nov.
 # (Round 13 on 19-20 Nov, then unlimited
 # transfers). FIRST PASS 14 Nov 12:00: Basketball Sphere tracker (13 Nov 23:03), RotoWire news to
@@ -28,7 +30,7 @@ availability:  # P(plays) in [12, 13, 14]
   - {club: DUB, player: Klemen Prepelic, p: [0.4, 0.6, 0.8], note: "back; missed R7-R11"}
   - {club: HTA, player: Bar Timor, p: [0.5, 0.7, 0.85], note: "missed R10-R11"}
   - {club: HTA, player: Tyler Ennis, p: [0.0, 0.0, 0.0]}
-  - {club: IST, player: Bruno Fernando, p: [0.4, 0.5, 0.7], note: "calf, MRI pending (tracker 13 Nov)"}
+  - {club: IST, player: Bruno Fernando, p: [0.0, 0.0, 0.3], note: "calf, out 3-4 weeks (tracker 17 Nov)"}
   - {club: IST, player: Isaia Cordinier, p: [0.0, 0.0, 0.0]}
   - {club: IST, player: Mike James, p: [0.0, 0.0, 0.0]}
   - {club: MAD, player: Facundo Campazzo, p: [0.3, 0.6, 0.9], note: "hamstring, out"}
@@ -71,18 +73,18 @@ availability:  # P(plays) in [12, 13, 14]
 minutes_expert:  # first EuroLeague game back
   - {club: MAD, player: Theo Maledon, minutes: 20.0}
 
-moneylines:  # decimal (home, away); Rounds 12-13 BetExplorer averages 17 Nov 00:00, 10-11 kept for ratings
+moneylines:  # decimal (home, away); Round 12 BetExplorer averages 17 Nov 11:40, 13 from 17 Nov 00:00, 10-11 kept for ratings
   12:
-    DUB-IST: [1.27, 3.57]
-    TEL-OLY: [3.17, 1.33]
-    ULK-ASV: [1.12, 5.65]
-    ZAL-MUN: [1.20, 4.27]
-    BAR-PRS: [1.36, 2.99]
-    MIL-RED: [1.98, 1.77]
-    BAS-HTA: [3.37, 1.29]
-    PAR-PAM: [1.92, 1.82]
-    VIR-PAN: [3.92, 1.23]
-    BES-MAD: [2.81, 1.40]
+    BAR-PRS: [1.43, 2.81]
+    BAS-HTA: [3.47, 1.30]
+    BES-MAD: [2.98, 1.38]
+    DUB-IST: [1.26, 3.83]
+    MIL-RED: [2.06, 1.76]
+    PAR-PAM: [1.86, 1.93]
+    TEL-OLY: [3.21, 1.34]
+    ULK-ASV: [1.13, 6.07]
+    VIR-PAN: [3.80, 1.27]
+    ZAL-MUN: [1.22, 4.32]
   13:
     TEL-DUB: [2.51, 1.48]
     ZAL-PAN: [1.98, 1.75]
@@ -117,15 +119,15 @@ moneylines:  # decimal (home, away); Rounds 12-13 BetExplorer averages 17 Nov 00
     VIR-DUB: [1.98, 1.77]
     PAR-TEL: [1.53, 2.40]
 
-totals:  # expected game total from over/under lines (BetExplorer, 14 Nov 12:00): the
+totals:  # expected game total from over/under lines (BetExplorer, 17 Nov 11:40): the
   12:    # most-quoted line, moved by its over/under imbalance
-    DUB-IST: 173.5
-    TEL-OLY: 172.7
-    ULK-ASV: 165.5
-    ZAL-MUN: 169.3
-    BAR-PRS: 185.6
-    MIL-RED: 166.7
-    BAS-HTA: 179.7
-    PAR-PAM: 174.5
-    VIR-PAN: 170.8
-    BES-MAD: 175.6
+    BAR-PRS: 185.8
+    BAS-HTA: 178.3
+    BES-MAD: 177.6
+    DUB-IST: 174.5
+    MIL-RED: 166.8
+    PAR-PAM: 174.4
+    TEL-OLY: 174.0
+    ULK-ASV: 167.1
+    VIR-PAN: 170.6
+    ZAL-MUN: 173.0
