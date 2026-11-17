@@ -59,6 +59,7 @@ HEALTHY = 0.97  # P(plays) for a fit player: the odd late scratch nobody reporte
 # Rotation discount beyond the ninth man. Backtest R2-R7: the steeper
 # [0.8, 0.6, 0.4] left deep-bench players 2.1 minutes short and starters 2.3 over.
 RANK_SHARE = [1.0] * 9 + [0.9, 0.8, 0.7, 0.5, 0.5, 0.5]
+PRICE_TIERS = (9.0, 13.0)  # credits: the bands of the position-and-price correction
 
 
 def _pkey(p: dict) -> Key:
@@ -530,6 +531,25 @@ def calibrate(cal, grp: str, projected: float) -> float:
     return max(projected + corr, 0.0)
 
 
+def position_tier(pos: str, price: float) -> tuple[str, int]:
+    return pos, sum(price >= t for t in PRICE_TIERS)
+
+
+def fit_position_correction(rows: list[dict], prior_games: float) -> dict[tuple[str, int], float]:
+    """(position, price band) -> what such players scored beyond their
+    ``forecast_plain`` in ``rows``, shrunk towards 0 with ``prior_games``
+    pseudo-games. 0 pseudo-games turns the correction off."""
+    if prior_games <= 0:
+        return {}
+    total: dict[tuple[str, int], float] = defaultdict(float)
+    n: dict[tuple[str, int], int] = defaultdict(int)
+    for x in rows:
+        q = position_tier(x["pos"], x["price"])
+        total[q] += x["actual"] - x["forecast_plain"]
+        n[q] += 1
+    return {q: total[q] / (n[q] + prior_games) for q in total}
+
+
 # ======================================================================= prices
 def coach_points(margin: float) -> int:
     if margin > 0:
@@ -718,6 +738,42 @@ class SeasonModel:
             rows += [(x["group"], x["ev"], x["actual"]) for x in rr]
         return fit_calibration(rows, self.season.calibration)
 
+    def chronological_forecasts(self, rows_by_round: dict[int, list[dict]]) -> None:
+        """Adds to each row what would have been forecast from earlier rounds
+        only: ``calibrated``; from the second round ``price_implied`` and
+        ``forecast_plain`` (model and price blended); and ``forecast``, the
+        final one, with the position-and-price correction."""
+        season = self.season
+        played = sorted(rows_by_round)
+        for r in played:
+            test = rows_by_round[r]
+            earlier = [x for k in played if k < r for x in rows_by_round[k]]
+            cal = fit_calibration(
+                [(x["group"], x["ev"], x["actual"]) for x in earlier], season.calibration
+            )
+            # The expected-points adjustment uses team averages (no saved over/under lines).
+            teams, league = team_points(self.games, r, season.team_points_prior_games)
+            k = season.team_points_weight
+            for x in test:
+                ratio = points_ratio(x["club"], x["opp"], x["home"], x["margin"], {}, teams, league)
+                x["calibrated"] = calibrate(cal, x["group"], x["ev"]) * (1 + k * (ratio - 1))
+                x["forecast"] = x["calibrated"]
+            if not earlier:
+                continue
+            b, a = np.polyfit([x["price"] for x in earlier], [x["actual"] for x in earlier], 1)
+            fixes = fit_position_correction(
+                [x for x in earlier if "forecast_plain" in x], season.position_prior_games
+            )
+            w = season.price_blend
+            for x in test:
+                x["price_implied"] = a + b * x["price"]
+                play = x["play"] / HEALTHY
+                x["forecast_plain"] = (
+                    w * x["calibrated"] + (1 - w) * max(x["price_implied"], 0.0) * play
+                )
+                fix = fixes.get(position_tier(x["pos"], x["price"]), 0.0) * play
+                x["forecast"] = max(x["forecast_plain"] + fix, 0.0)
+
     def project(self, target: int, private: PrivateInputs | None = None, cal=None) -> dict:
         """Projections for ``target`` and the following rounds of the horizon."""
 
@@ -728,6 +784,13 @@ class SeasonModel:
         )
         past = {r: self.reproject(r) for r in range(1, target)}
         cal = self.calibration(target, past) if cal is None else cal
+        fixes = {}
+        if self.season.position_prior_games > 0:
+            self.chronological_forecasts(past)
+            fixes = fit_position_correction(
+                [x for r in past.values() for x in r if "forecast_plain" in x],
+                self.season.position_prior_games,
+            )
         # Price-implied forecast (actual ~ a + b * price on every earlier round),
         # blended with the model: the game's prices are a forecast of their own.
         w = self.season.price_blend
@@ -757,13 +820,15 @@ class SeasonModel:
                                      self.round_inputs(target).totals.get(rnd, {}), teams, league)  # fmt: skip
                 model_ev = calibrate(cal, prior_group(p), raw) * (1 + k_pts * (ratio - 1))
                 # The price half knows nothing of injuries: scale it by P(plays).
-                price_ev = max(a + b * p["price"], 0.0) * r["play"] / HEALTHY if rows else model_ev
-                ev = (w * model_ev + (1 - w) * price_ev) * self.season.eye_multiplier(
-                    _pkey(p), target
-                )
+                play = r["play"] / HEALTHY
+                price_ev = max(a + b * p["price"], 0.0) * play if rows else model_ev
+                fix = fixes.get(position_tier(p["pos"], p["price"]), 0.0) * play
+                ev = max(w * model_ev + (1 - w) * price_ev + fix, 0.0)
+                ev *= self.season.eye_multiplier(_pkey(p), target)
                 scale = ev / raw if raw > 0 else 1.0
                 p["proj"][str(rnd)] = {**r, "ev": ev, "raw_ev": raw, "model_ev": model_ev,
-                                       "price_ev": price_ev, "if_plays": r["if_plays"] * scale,
+                                       "price_ev": price_ev, "position_fix": fix,
+                                       "if_plays": r["if_plays"] * scale,
                                        "turn": days.index(r["date"][:10])}  # fmt: skip
             for c in coaches:
                 m = next(

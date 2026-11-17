@@ -82,6 +82,7 @@ class SeasonInputs:
     credit_per_round: float = 0.0  # points one more credit buys per round (0 = horizon only)
     credit_weight: float = 0.0  # discount on the rounds after the planning horizon
     last_round: int = 38
+    position_prior_games: float = 0.0  # shrinkage of the position-and-price correction (0 = off)
 
     @property
     def previous_code(self) -> str:
@@ -208,6 +209,9 @@ def load_season(root: Path | None = None) -> SeasonInputs:
         credit_per_round=float((model.get("credits") or {}).get("per_round", 0.0)),
         credit_weight=float((model.get("credits") or {}).get("weight", 0.0)),
         last_round=int((model.get("credits") or {}).get("last_round", 38)),
+        position_prior_games=float(
+            (model.get("position_correction") or {}).get("prior_games", 0.0)
+        ),
     )
 
 

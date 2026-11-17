@@ -27,14 +27,7 @@ from datetime import date
 import numpy as np
 from scipy.stats import spearmanr
 
-from elfantasy.season.model import (
-    HEALTHY,
-    SeasonModel,
-    calibrate,
-    fit_calibration,
-    points_ratio,
-    team_points,
-)
+from elfantasy.season.model import SeasonModel
 
 
 @dataclass
@@ -54,7 +47,8 @@ class RoundScore:
     price: Score | None  # actual ~ price, fitted on earlier rounds
     hindsight_top: float
     tuned_on: bool
-    blend: Score | None = None  # model and price mixed by season.yaml's price_blend
+    blend: Score | None = None  # the forecast used: model and price mixed, corrected
+    plain_blend: Score | None = None  # the same without the position-and-price correction
     opp_adjusted: Score | None = None  # the blend plus the opponent-vs-position adjustment
     # actual - forecast for projected starters, by rest since the club's previous game
     short_rest: list[float] = field(default_factory=list)
@@ -106,43 +100,19 @@ def run_backtest(
 ) -> list[RoundScore]:
     played = [r for r in model.data.played_rounds() if through is None or r <= through]
     rows = {r: model.reproject(r) for r in played}
+    model.chronological_forecasts(rows)
     out = []
     for r in played:
         earlier = [x for k in played if k < r for x in rows[k]]
-        cal = fit_calibration(
-            [(x["group"], x["ev"], x["actual"]) for x in earlier], model.season.calibration
-        )
         test = rows[r]
         act = [x["actual"] for x in test]
         raw = [x["ev"] for x in test]
-        # The expected-points adjustment uses team averages (no saved over/under lines).
-        teams, league = team_points(model.games, r, model.season.team_points_prior_games)
-        k = model.season.team_points_weight
-        calibrated = [
-            calibrate(cal, x["group"], x["ev"])
-            * (
-                1
-                + k
-                * (points_ratio(x["club"], x["opp"], x["home"], x["margin"], {}, teams, league) - 1)
-            )
-            for x in test
-        ]
-        price = blend = None
+        calibrated = [x["calibrated"] for x in test]
+        price = blend = plain_blend = opp_adjusted = None
         if earlier:
-            b, a = np.polyfit([x["price"] for x in earlier], [x["actual"] for x in earlier], 1)
-            by_price = [a + b * x["price"] for x in test]
-            price = _score(by_price, act, top_k)
-            w = model.season.price_blend
-            mixed = [
-                w * m + (1 - w) * max(q, 0.0) * x["play"] / HEALTHY
-                for m, q, x in zip(calibrated, by_price, test, strict=True)
-            ]
-            blend = _score(mixed, act, top_k)
-        forecast = mixed if earlier else calibrated
-        for x, f in zip(test, forecast, strict=True):
-            x["forecast"] = f
-        opp_adjusted = None
-        if earlier:
+            price = _score([x["price_implied"] for x in test], act, top_k)
+            blend = _score([x["forecast"] for x in test], act, top_k)
+            plain_blend = _score([x["forecast_plain"] for x in test], act, top_k)
             adj = opponent_adjustment(earlier)
             opp_adjusted = _score(
                 [x["forecast"] + adj.get((x["opp"], x["pos"]), 0.0) for x in test], act, top_k
@@ -162,6 +132,7 @@ def run_backtest(
                 raw=_score(raw, act, top_k),
                 price=price,
                 blend=blend,
+                plain_blend=plain_blend,
                 hindsight_top=float(np.sort(act)[::-1][:top_k].mean()),
                 tuned_on=r in model.season.tuned_on,
                 opp_adjusted=opp_adjusted,

@@ -501,3 +501,47 @@ def test_credits_count_for_the_rest_of_the_season(rules):
     assert RoundPlanner(proj, rules, None, log=lambda m: None).long_run_credit() == 0.0
     season = load_season(SEASON)
     assert (season.credit_per_round, season.credit_weight, season.last_round) == (1.2, 0.15, 38)
+
+
+# ---------------------------------------------------------------- position-and-price correction
+def test_position_tiers():
+    from elfantasy.season.model import position_tier
+
+    assert position_tier("F", 8.9) == ("F", 0)
+    assert position_tier("F", 9.0) == ("F", 1)
+    assert position_tier("C", 13.0) == ("C", 2)
+
+
+def test_position_correction_is_shrunk_and_can_be_off():
+    from elfantasy.season.model import fit_position_correction
+
+    cheap = {"pos": "F", "price": 5.0, "actual": 8.0, "forecast_plain": 6.0}
+    star = {"pos": "G", "price": 18.0, "actual": 10.0, "forecast_plain": 16.0}
+    fixes = fit_position_correction([cheap, cheap, cheap, star], 3)
+    assert fixes[("F", 0)] == pytest.approx(6.0 / 6)
+    assert fixes[("G", 2)] == pytest.approx(-6.0 / 4)
+    assert fit_position_correction([cheap], 0) == {}
+
+
+def test_position_correction_runs_through_projection_and_backtest(tmp_path, rules):
+    from dataclasses import replace
+
+    from elfantasy.season.backtest import run_backtest
+    from elfantasy.season.model import SeasonModel
+
+    sd, dd = make_season(tmp_path)
+    season = load_season(sd)
+    data = SeasonData.for_season(dd, season)
+    plain = run_backtest(SeasonModel(season, data, rules))
+    assert plain[1].blend.top == pytest.approx(plain[1].plain_blend.top)
+
+    model = SeasonModel(replace(season, position_prior_games=5.0), data, rules)
+    result = model.project(3, None)
+    hurt = next(p for p in result["players"] if p["name"] == "BBB C hx")
+    assert hurt["proj"]["3"]["position_fix"] == 0.0  # out this round: no correction
+    assert any(p["proj"]["3"]["position_fix"] != 0.0 for p in result["players"] if "3" in p["proj"])
+    assert run_backtest(model)[1].plain_blend is not None
+
+
+def test_this_season_uses_the_correction():
+    assert load_season(SEASON).position_prior_games == 150.0

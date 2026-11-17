@@ -128,6 +128,14 @@ model:
     per_round: 1.2
     weight: 0.15
     last_round: 38
+  # Added to each forecast: what players of that position and price band (under 9,
+  # 9-13, 13+ credits) scored beyond their forecasts in earlier rounds, shrunk with
+  # `prior_games` pseudo-games. Cheap forwards had beaten their forecasts by 0.9 a game
+  # over 500 games. Added 8 Nov: on Rounds 4-10 top-40 picks rose from 14.19 to 14.68
+  # points, better in 6 of 7 rounds, with slightly lower error and better ranking.
+  # 150 was the best of the three strengths tried on those rounds, so that flatters it.
+  position_correction:
+    prior_games: 150
   calibration:        # additive group x tier corrections, empirical-Bayes shrunk
     prior_sd: 1.5
     cv: 0.634
