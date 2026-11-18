@@ -558,10 +558,21 @@ def _roster_data(tmp_path, people, public=None):
     )
     (data.prior_dir / "people_E2026.json").write_text(json.dumps({"data": people}))
     (data.prior_dir / "stats_E2025_acc.json").write_text(json.dumps({"players": []}))
+    # Round 11 on 11-13 Nov, Round 12 on 17-18 Nov, Round 13 on 19-20 Nov.
+    days = {11: ("2026-11-11", "2026-11-13"), 12: ("2026-11-17", "2026-11-18"),
+            13: ("2026-11-19", "2026-11-20")}  # fmt: skip
+    data.games_file.write_text(json.dumps({"data": [
+        {"identifier": f"G{r}{i}", "round": r, "played": r < 12, "localDate": f"{d}T20:00:00",
+         "local": {"club": {"code": "AAA"}, "score": 0}, "road": {"club": {"code": "BBB"}, "score": 0}}
+        for r, ds in days.items() for i, d in enumerate(ds)
+    ]}))  # fmt: skip
     if public:
         (data.root / "archive" / "tables").mkdir(parents=True)
         (data.root / "archive" / "tables" / "prices_public.jsonl").write_text(
-            "\n".join(json.dumps({"captured_at": "2026-11-17T00:00:00+00:00", **r}) for r in public)
+            "\n".join(
+                json.dumps({"captured_at": r.pop("captured_at", "2026-11-17T00:00:00+00:00"), **r})
+                for r in public
+            )
         )
     return season, data
 
@@ -588,6 +599,11 @@ def test_a_transfer_takes_the_active_registration_not_the_stale_list_club(tmp_pa
     assert rows["Kenan Kamenjas"]["registered_until"] is None
     assert rows["Chris Silva"]["club"] == "PAR"
     assert report["moved"] == ["Kenan Kamenjas (DUB -> BAS)", "Chris Silva (ULK -> PAR)"]
+    # The whole history is kept: replays of earlier rounds need his club then.
+    assert rows["Chris Silva"]["registrations"] == [
+        {"club": "ULK", "from": "2026-08-01", "until": "2026-11-16"},
+        {"club": "PAR", "from": "2026-11-16", "until": None},
+    ]
 
 
 def test_a_new_arrival_is_added_priced_from_the_public_list(tmp_path):
@@ -609,6 +625,40 @@ def test_a_new_arrival_is_added_priced_from_the_public_list(tmp_path):
     assert rows["Lonnie Walker IV"]["price"] == 9.9  # matched without the suffix
     assert rows["Nobody Newcomer"]["price_unknown"] and rows["Nobody Newcomer"]["pos"] == "F"
     assert report["unpriced"] == ["Nobody Newcomer (BES)"]
+    # Each price is dated by the round it was captured for, not the round of the run.
+    assert rows["Cameron Payne"]["price_obs"] == [[12, 11.4]]
+
+
+def test_public_prices_are_dated_by_the_round_they_were_captured_for(tmp_path):
+    season, data = _roster_data(
+        tmp_path,
+        [_person("014213", "PAYNE, CAMERON", "IST", "2026-10-07T15:09:46", pos="Guard")],
+        public=[{"player": "Cameron Payne", "club": "Efes", "pos": "G", "price": 11.4},
+                {"captured_at": "2026-11-17T11:00:00+00:00", "player": "Cameron Payne",
+                 "club": "Efes", "pos": "G", "price": 11.5},
+                {"captured_at": "2026-11-19T09:00:00+00:00", "player": "Cameron Payne",
+                 "club": "Efes", "pos": "G", "price": 11.9}],
+    )  # fmt: skip
+    data.join_prior(season)
+    payne = json.loads((data.prior_dir / "joined.json").read_text())[-1]
+    assert payne["price_obs"] == [[12, 11.5], [13, 11.9]]  # the last capture of each round
+    assert payne["price"] == 11.9
+
+
+def test_a_later_price_never_stands_in_for_an_earlier_one(tmp_path, rules):
+    season = load_season(SEASON)
+    data = SeasonData(tmp_path)
+    (tmp_path / "boxes").mkdir()
+    for rnd in range(6, 13):
+        (tmp_path / "boxes" / f"round_{rnd:02d}.json").write_text("[]")
+    signing = {"name": "Cameron Payne", "club": "IST", "pos": "G", "code": "1", "price": 10.2,
+               "price_obs": [[12, 10.2]], "added": True}  # fmt: skip
+    p = dict(signing)
+    estimate_prices([p], [], 6, data, season, rules, {})
+    assert p["price_unknown"] and p["price"] == 4.0  # not 10.2: nothing on record by Round 6
+    q = dict(signing)
+    estimate_prices([q], [], 13, data, season, rules, {})
+    assert not q.get("price_unknown") and q["price"] == pytest.approx(10.1)  # R12 DNP: -0.1
 
 
 def test_absences_before_registration_are_not_coach_decisions():
@@ -631,3 +681,115 @@ def test_unregistered_players_are_off_the_roster_that_round():
     assert not registered(p, "2026-11-12") and registered(p, "2026-11-17")
     assert not registered({"registered_until": "2026-10-24"}, "2026-11-01")
     assert registered({}, "2026-11-01")
+    # Back at a club he left: both spells there count.
+    back = {"club": "DUB", "registrations": [
+        {"club": "DUB", "from": "2026-08-01", "until": "2026-10-01"},
+        {"club": "BAS", "from": "2026-10-02", "until": "2026-10-20"},
+        {"club": "DUB", "from": "2026-10-21", "until": None}]}  # fmt: skip
+    assert registered(back, "2026-09-30") and not registered(back, "2026-10-10")
+
+
+def test_a_price_on_record_is_found_at_any_of_his_clubs():
+    from elfantasy.season.model import price_record
+
+    signing = {"name": "Nikola Mirotic", "club": "PAM", "price": 12.2, "price_obs": [[12, 12.2]]}
+    lists = {4: {key("PAM", "Nikola Mirotic"): 11.0}, 2: {key("PAM", "Someone Else"): 5.0}}
+    assert price_record(signing, lists) == [(4, 11.0), (12, 12.2)]
+    moved = {"name": "Kamar Baldwin", "club": "TEL", "price": 6.7,
+             "registrations": [{"club": "MUN", "from": "2026-08-12", "until": "2026-11-16"},
+                               {"club": "TEL", "from": "2026-11-16", "until": None}]}  # fmt: skip
+    assert price_record(moved, {2: {key("MUN", "Kamar Baldwin"): 6.5}}) == [(1, 6.7), (2, 6.5)]
+
+
+def test_a_transfer_is_at_his_club_of_the_day():
+    from elfantasy.season.model import as_of
+
+    stints = [{"club": "MUN", "from": "2026-08-12", "until": "2026-11-16"},
+              {"club": "TEL", "from": "2026-11-16", "until": None}]  # fmt: skip
+    p = {"club": "TEL", "registrations": stints}
+    as_of(p, "2026-10-14")
+    assert (p["club"], p["registered_until"]) == ("MUN", "2026-11-16")
+    as_of(p, "2026-11-19")
+    assert (p["club"], p["registered_until"]) == ("TEL", None)
+
+
+def test_old_club_games_teach_the_rate_before_a_debut():
+    """No game at the new club yet: his minutes there are unknown, but what he
+    scored per minute elsewhere still counts."""
+
+    p = _player(base_min=20.0)
+    p["registered_from"] = "2026-11-13"
+    games = {"g1": _game("g1", 1, 2)}
+    games["g1"]["localDate"] = "2026-10-01T20:00:00"
+    line = {**_line("g1", 24.0, 30.0), "team_code": "BBB"}
+    update_with_evidence([p], games, {1: {"1": line}}, {}, W)
+    assert p["rate"] == pytest.approx((180 * 0.5 + 30) / (180 + 24))
+    assert p["base_min"] == 20.0
+
+
+def _rosters_changed(tmp_path):
+    """make_season with a transfer (BBB G bx to CCC after Round 2), a release
+    (DDD F ex, owned) and two signings for AAA: one priced from Round 3, one
+    with no price on record."""
+
+    import yaml
+
+    sd, dd = make_season(tmp_path)
+    root = dd / "cache" / "seasons" / "test"
+    joined = json.loads((root / "prior" / "joined.json").read_text())
+    by = {p["name"]: p for p in joined}
+    by["BBB G bx"].update(club="CCC", registered_from="2026-10-12", registered_until=None,
+                          registrations=[{"club": "BBB", "from": "2026-08-01", "until": "2026-10-11"},
+                                         {"club": "CCC", "from": "2026-10-12", "until": None}])  # fmt: skip
+    by["DDD F ex"].update(registered_from="2026-08-01", registered_until="2026-10-11",
+                          registrations=[{"club": "DDD", "from": "2026-08-01", "until": "2026-10-11"}])  # fmt: skip
+    joined += [
+        {"name": "Signed Early", "club": "AAA", "pos": "G", "code": "PNEW1", "added": True,
+         "price": 7.5, "price_obs": [[3, 7.5]], "registered_from": "2026-09-01",
+         "registrations": [{"club": "AAA", "from": "2026-09-01", "until": None}]},
+        {"name": "Signed Unpriced", "club": "AAA", "pos": "F", "code": "PNEW2", "added": True,
+         "price": 4.0, "price_unknown": True, "registered_from": "2026-09-01",
+         "registrations": [{"club": "AAA", "from": "2026-09-01", "until": None}]},
+    ]  # fmt: skip
+    (root / "prior" / "joined.json").write_text(json.dumps(joined))
+    priv = yaml.safe_load((sd / "private" / "r03.yaml").read_text())
+    priv["prices"].append({"club": "AAA", "player": "Signed Unpriced", "price": 6.3})
+    (sd / "private" / "r03.yaml").write_text(yaml.safe_dump(priv))
+    return sd, dd
+
+
+def test_replays_keep_each_player_where_he_was(tmp_path, rules):
+    from elfantasy.season.model import SeasonModel
+
+    sd, dd = _rosters_changed(tmp_path)
+    season = load_season(sd)
+    model = SeasonModel(season, SeasonData.for_season(dd, season), rules)
+    past = {x["name"]: x for x in model.reproject(2)}
+    assert past["BBB G bx"]["club"] == "BBB"  # not dropped for his later move
+    assert "DDD F ex" in past  # released after Round 2: he played it
+    assert "Signed Early" not in past  # first priced for Round 3: no price in Round 2
+    now = {p["name"]: p for p in model.project(3, None)["players"]}
+    assert now["BBB G bx"]["club"] == "CCC" and now["BBB G bx"]["proj"]["3"]["opp"] == "BBB"
+    assert now["Signed Early"]["price"] == 7.5 and not now["Signed Early"].get("price_unknown")
+    assert now["DDD F ex"]["proj"] == {}  # not owned here: off the board
+
+
+def test_owned_released_and_newly_priced_players_reach_the_planner(tmp_path, rules):
+    from elfantasy.season.inputs import load_private
+    from elfantasy.season.model import SeasonModel
+
+    sd, dd = _rosters_changed(tmp_path)
+    season = load_season(sd)
+    model = SeasonModel(season, SeasonData.for_season(dd, season), rules)
+    private = load_private(sd, 3)
+    assert "DDD F ex" in private.squad
+    result = model.project(3, private)
+    by = {p["name"]: p for p in result["players"]}
+    gone = by["DDD F ex"]["proj"]["3"]
+    assert gone["ev"] == 0.0 and gone["play"] == 0.0 and gone["unregistered"]
+    assert by["Signed Unpriced"]["price"] == 6.3 and not by["Signed Unpriced"].get("price_unknown")
+    planner = RoundPlanner(result, rules, private, log=lambda m: None)
+    assert planner.budget() > 0  # it used to raise: not in the projections
+    assert {"DDD F ex", "Signed Unpriced"} <= {p.player_id for p in planner.lp}
+    plan = planner.search(n_search=300, n_final=600, seeds=(1, 2)).plan
+    assert "DDD F ex" not in plan.bought

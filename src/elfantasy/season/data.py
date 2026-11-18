@@ -172,19 +172,15 @@ class SeasonData:
         return len(json.loads(body)["data"])
 
     def _public_prices(self) -> list[dict]:
-        """The latest archived public price list (it can lag the app and its clubs)."""
+        """Every archived public price list (they can lag the app and its
+        clubs), each row with ``round``: the round it was captured for."""
         path = self.root / "archive" / "tables" / "prices_public.jsonl"
         if not path.is_file():
             return []
         rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
-        latest = max((r["captured_at"] for r in rows), default=None)
-        return [r for r in rows if r["captured_at"] == latest]
-
-    def _next_round(self) -> int | None:
-        if not self.games_file.is_file():
-            return None
-        open_rounds = [int(g["round"]) for g in self.games().values() if not g["played"]]
-        return min(open_rounds) if open_rounds else None
+        games = self.games() if self.games_file.is_file() else {}
+        rounds = {c: round_of_capture(c, games) for c in {r["captured_at"] for r in rows}}
+        return [{**r, "round": rounds[r["captured_at"]]} for r in rows if rounds[r["captured_at"]]]
 
     def join_prior(self, season: SeasonInputs) -> tuple[int, list[str], dict[str, list[str]]]:
         """Opening prices + rosters + last season's per-game stats -> joined.json.
@@ -215,6 +211,7 @@ class SeasonData:
             for p in people
         ]  # fmt: skip
         current = current_registrations(people)
+        history = registration_history(people)
         by_code = {s["player"]["code"]: s for s in stats}
 
         def tokens(name: str) -> set[str]:
@@ -230,7 +227,7 @@ class SeasonData:
             reg = current.get(code)
             if reg:
                 rec.update(club=reg["club"], registered_from=reg["start"],
-                           registered_until=reg["until"])  # fmt: skip
+                           registered_until=reg["until"], registrations=history[code])  # fmt: skip
             return rec
 
         # A partial-name match may not take an ID another player matched exactly
@@ -288,33 +285,44 @@ class SeasonData:
             out.append(rec)
 
         # Registered now but not on the opening list: signings, and players the
-        # list missed. Priced from the latest public list, matched by name.
+        # list missed. Priced from the archived public lists, matched by name:
+        # ``price_obs`` [[round, price]] holds each round a list was captured
+        # for, so a replay of an earlier round never sees a later price.
         public = self._public_prices()
-        price_round = self._next_round()
+        names = {q["player"] for q in public}
         seen = {r.get("code") for r in out}
         for code, reg in sorted(current.items()):
             if code in seen or reg["until"]:
                 continue
             name = feed_name(reg["name"])
             want = normalise_name(name)
-            hit = [q for q in public if normalise_name(q["player"]) == want]
-            if not hit:
-                scored = [(len(tokens(name) & tokens(q["player"])), q) for q in public]
+            match = [n for n in names if normalise_name(n) == want]
+            if not match:
+                scored = [(len(tokens(name) & tokens(n)), n) for n in names]
                 best = max((s for s, _ in scored), default=0)
-                top = [q for s, q in scored if s == best and s >= 2]
-                hit = top if len(top) == 1 else []
+                top = [n for s, n in scored if s == best and s >= 2]
+                match = top if len(top) == 1 else []
+            hit = sorted(
+                (q for q in public if q["player"] in match), key=lambda q: q["captured_at"]
+            )
             rec = {"name": name, "club": reg["club"], "code": code, "api_name": reg["name"],
                    "last_team": reg["last_team"], "added": True,
-                   "pos": hit[0]["pos"] if hit else POSITIONS.get(reg["position"], "F")}  # fmt: skip
+                   "pos": hit[-1]["pos"] if hit else POSITIONS.get(reg["position"], "F")}  # fmt: skip
+            latest = {q["round"]: float(q["price"]) for q in hit}  # last capture per round
+            price_obs = sorted([r, p] for r, p in latest.items())
             if hit:
-                rec.update(price=float(hit[0]["price"]), price_round=price_round)
+                rec.update(price=float(hit[-1]["price"]), price_obs=price_obs)
             else:
-                rec.update(price=4.0, price_unknown=True)
+                rec.update(price=UNKNOWN_PRICE, price_unknown=True)
                 report["unpriced"].append(f"{name} ({reg['club']})")
             out.append(with_stats(rec, code))
             report["added"].append(
                 f"{name} ({reg['club']}, from {reg['start']}"
-                + (f", {rec['price']:.1f}" if hit else ", price unknown")
+                + (
+                    f", {float(hit[-1]['price']):.1f} from R{price_obs[0][0]}"
+                    if hit
+                    else ", price unknown"
+                )
                 + ")"
             )
         (self.prior_dir / "joined.json").write_text(
@@ -331,18 +339,14 @@ class SeasonData:
             if r.get("code")
         }
         played = self.played_rounds()[-rounds:]
-        first_day = {}
-        for g in self.games().values():
-            day = str(g.get("localDate", ""))[:10]
-            first_day[g["round"]] = min(first_day.get(g["round"], day), day)
         gaps = {}
         for r, box in self.boxes(played).items():
             for ln in box.values():
                 p = pool.get(ln["player_id"])
-                moved_since = p is not None and (p.get("registered_from") or "") > first_day[r]
-                if ln["minutes"] > 0 and (
-                    p is None or (p["club"] != ln["team_code"] and not moved_since)
-                ):
+                clubs = (
+                    {p["club"], *(s["club"] for s in p.get("registrations") or [])} if p else set()
+                )
+                if ln["minutes"] > 0 and ln["team_code"] not in clubs:
                     gaps[ln["player_id"]] = f"{ln['player_id']} ({ln['team_code']}, R{r})" + (
                         "" if p is None else f": pool has {p['name']} at {p['club']}"
                     )
@@ -350,6 +354,7 @@ class SeasonData:
 
 
 POSITIONS = {"Guard": "G", "Forward": "F", "Center": "C", "Centre": "C"}
+UNKNOWN_PRICE = 4.0  # placeholder for a player with no price yet (never bought at it)
 
 
 def feed_name(name: str) -> str:
@@ -360,19 +365,50 @@ def feed_name(name: str) -> str:
     return " ".join(fixed.get(w, w) for w in words)
 
 
+def _registration(p: dict) -> dict:
+    active = p.get("active", True)
+    return {"name": p["person"]["name"], "club": p["club"]["code"],
+            "start": (p.get("startDate") or "")[:10] or None,
+            "until": None if active else (p.get("endDate") or "")[:10] or None,
+            "active": active, "last_team": p.get("lastTeam"),
+            "position": p.get("positionName", "")}  # fmt: skip
+
+
 def current_registrations(people: list[dict]) -> dict[str, dict]:
     """player code -> his current registration: the latest active one, else
     (released) the last one, with its start and, if released, end date."""
     out: dict[str, dict] = {}
     for p in people:
         code = p["person"]["code"]
-        active = p.get("active", True)
-        reg = {"name": p["person"]["name"], "club": p["club"]["code"],
-               "start": (p.get("startDate") or "")[:10] or None,
-               "until": None if active else (p.get("endDate") or "")[:10] or None,
-               "active": active, "last_team": p.get("lastTeam"),
-               "position": p.get("positionName", "")}  # fmt: skip
+        reg = _registration(p)
         old = out.get(code)
-        if old is None or (active, reg["start"] or "") > (old["active"], old["start"] or ""):
+        if old is None or (reg["active"], reg["start"] or "") > (old["active"], old["start"] or ""):
             out[code] = reg
     return out
+
+
+def registration_history(people: list[dict]) -> dict[str, list[dict]]:
+    """player code -> every registration this season, oldest first:
+    [{"club", "from", "until"}] (``until`` None while active). A transfer
+    keeps his earlier club for the rounds he played there."""
+    out: dict[str, list[dict]] = {}
+    for p in people:
+        reg = _registration(p)
+        out.setdefault(p["person"]["code"], []).append(
+            {"club": reg["club"], "from": reg["start"], "until": reg["until"]}
+        )
+    for stints in out.values():
+        stints.sort(key=lambda s: s["from"] or "")
+    return out
+
+
+def round_of_capture(captured_at: str, games: dict[str, dict]) -> int | None:
+    """The round a price list captured at ``captured_at`` is valid for: the
+    first round not finished by that day (prices change between rounds)."""
+    day = captured_at[:10]
+    last: dict[int, str] = {}
+    for g in games.values():
+        d = str(g.get("localDate", ""))[:10]
+        last[int(g["round"])] = max(last.get(int(g["round"]), d), d)
+    open_rounds = [r for r, d in last.items() if d >= day]
+    return min(open_rounds) if open_rounds else None

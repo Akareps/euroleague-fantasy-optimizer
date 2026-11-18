@@ -103,8 +103,10 @@ class RoundPlanner:
             proj = p["proj"]
             if first not in proj or (p["name"] in self.exclude and p["name"] not in self.squad):
                 continue
-            if p.get("price_unknown") and p["name"] not in self.squad:
-                continue  # registered, but no price to buy him at yet
+            if p["name"] not in self.squad and (
+                p.get("price_unknown") or proj[first].get("unregistered")
+            ):
+                continue  # no price to buy him at yet, or not on a roster: sell-only
             ev = {r: proj[str(r)]["ev"] for r in self.rounds if str(r) in proj}
             r0 = proj[first]
             # MILP "late": the last game day -- the bench the Turn options want.

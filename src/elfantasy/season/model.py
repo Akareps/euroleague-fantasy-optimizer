@@ -39,7 +39,7 @@ from elfantasy.data.injuries import normalise_name
 from elfantasy.projection import market as mk
 from elfantasy.rules import GameRules
 from elfantasy.scoring import fantasy_score, price_change
-from elfantasy.season.data import SeasonData
+from elfantasy.season.data import UNKNOWN_PRICE, SeasonData
 from elfantasy.season.inputs import (
     CalibrationSettings,
     EvidenceWeights,
@@ -119,8 +119,15 @@ def player_history(agg, club_now):
     }
 
 
-def build_players(data: SeasonData, season: SeasonInputs):
-    """Preseason baselines for every priced player: (players, coaches, fit_info)."""
+def build_players(
+    data: SeasonData, season: SeasonInputs, day: str | None = None, target: int | None = None
+):
+    """Preseason baselines for every priced player: (players, coaches, fit_info).
+
+    With ``day``, each player is at the club he was registered with that day;
+    with ``target``, his prior uses only a price on record by that round (a
+    signing first priced later is ``price_unknown`` at the placeholder price).
+    """
 
     prior = data.prior_dir
     joined = json.loads((prior / "joined.json").read_text(encoding="utf-8"))
@@ -143,10 +150,18 @@ def build_players(data: SeasonData, season: SeasonInputs):
     league_cv = float(np.median(cvs)) if cvs else 0.634
 
     players, coaches = [], []
+    lists = data.price_lists(season) if target is not None else {}
     for r in joined:
         if r["pos"] == "HC":
             coaches.append(r)
             continue
+        as_of(r, day)
+        if target is not None:
+            obs = [o for o in price_record(r, lists) if o[0] <= target]
+            if obs:
+                r["price"] = obs[0][1]  # his first price, as the opening list's is
+            else:
+                r.update(price=UNKNOWN_PRICE, price_unknown=True)
         r["hist"] = player_history(aggs.get(r.get("code")), r["club"]) if r.get("code") else None
         players.append(r)
 
@@ -160,9 +175,12 @@ def build_players(data: SeasonData, season: SeasonInputs):
         ]
         pos_rate[pos] = float(np.median(rs))
 
-    # Price-implied PIR and minutes, fitted on same-club returning players.
+    # Price-implied PIR and minutes, fitted on same-club returning players
+    # at their opening prices (a later signing's price is not comparable).
     fit_rows = [
-        p for p in players if p["hist"] and p["hist"]["same_club"] and p["hist"]["gp"] >= 10
+        p
+        for p in players
+        if p["hist"] and p["hist"]["same_club"] and p["hist"]["gp"] >= 10 and not p.get("added")
     ]
     prices = np.array([p["price"] for p in fit_rows])
     b1, a1 = np.polyfit(prices, [p["hist"]["pir"] for p in fit_rows], 1)
@@ -245,12 +263,58 @@ def round_dates(games: dict[str, dict]) -> dict[int, str]:
 
 
 def registered(p: dict, day: str | None) -> bool:
-    """Was the player registered with his (current) club on ``day``? Unknown
-    dates count as registered all season."""
-    start, until = p.get("registered_from"), p.get("registered_until")
+    """Was the player registered with his club (``p["club"]``) on ``day``?
+    Any of his registrations there counts. Unknown dates count as
+    registered all season."""
     if not day:
         return True
-    return (not start or start <= day) and (not until or day <= until)
+    stints = [s for s in p.get("registrations") or [] if s["club"] == p.get("club")] or [
+        {"from": p.get("registered_from"), "until": p.get("registered_until")}
+    ]
+    return any(
+        (not s["from"] or s["from"] <= day) and (not s["until"] or day <= s["until"])
+        for s in stints
+    )
+
+
+def stint_on(p: dict, day: str) -> dict | None:
+    """His registration in force on ``day``: the latest one started by then
+    (it may have ended: released), else the first (not signed yet)."""
+    stints = p.get("registrations") or []
+    started = [s for s in stints if not s["from"] or s["from"] <= day]
+    return started[-1] if started else (stints[0] if stints else None)
+
+
+def as_of(p: dict, day: str | None) -> None:
+    """Puts the player at the club he was registered with on ``day``: a
+    replay of an earlier round sees a transfer at his old club."""
+    s = stint_on(p, day) if day else None
+    if s:
+        p.update(club=s["club"], registered_from=s["from"], registered_until=s["until"])
+
+
+def price_observations(x: dict) -> list[tuple[int, float]]:
+    """(round, price) of every price on record in the pool file: the opening
+    list's (round 1) or the public lists' captures for a later signing."""
+    if "price_obs" in x:
+        return [(int(r), float(p)) for r, p in x["price_obs"]]
+    if x.get("price_unknown"):
+        return []
+    return [(int(x.get("price_round") or 1), float(x["price"]))]
+
+
+def price_record(x: dict, lists: dict[int, dict[Key, float]]) -> list[tuple[int, float]]:
+    """Every (round, price) on record for him, oldest first: the pool file's
+    and each published list's (round -> key -> price) that names him at any
+    club he has been registered with."""
+    clubs = {x["club"], *(s["club"] for s in x.get("registrations") or [])}
+    keys = [key(c, x["name"]) for c in sorted(clubs)]
+    obs = price_observations(x)
+    for r in sorted(lists):
+        hit = next((lists[r][k] for k in keys if k in lists[r]), None)
+        if hit is not None:
+            obs.append((r, hit))
+    return sorted(obs, key=lambda o: o[0])
 
 
 def garbage_minutes(margin: float) -> float:
@@ -322,13 +386,13 @@ def update_with_evidence(
             if m > 0:
                 pirs.append((wt, m, pir))
             seen[rnd] = (round(m, 1), pir)
-        if mins:
+        if mins:  # his role at this club
             p["base_min"] = (k_min * p["base_min"] + sum(a * b for a, b in mins)) / (
                 k_min + sum(a for a, _ in mins)
             )
-            if pirs:
-                tm = sum(a * m for a, m, _ in pirs)
-                p["rate"] = (n_rate * p["rate"] + sum(a * x for a, _, x in pirs)) / (n_rate + tm)
+        if pirs:  # PIR per minute, wherever he played
+            tm = sum(a * m for a, m, _ in pirs)
+            p["rate"] = (n_rate * p["rate"] + sum(a * x for a, _, x in pirs)) / (n_rate + tm)
         p["base_pir"] = p["rate"] * p["base_min"]
         p["seen"] = seen
     # Stated roles, kept until a game since contradicts them.
@@ -592,10 +656,13 @@ def coach_price_change(points: float, price: float) -> float:
 
 
 def estimate_prices(players, coaches, target, data, season, rules, games, private=None, known=None):
-    """Prices for ``target``: each player's latest known price at or before it
-    (a published list, or app prices recorded for an earlier round in
-    ``known``) plus each later round's fitted change; the app's prices for
-    ``target`` itself where given."""
+    """Prices for ``target``: each player's latest price on record for a round
+    at or before it (the opening list, a public list captured for that
+    round, or app prices recorded for an earlier round in ``known``) plus
+    each later round's fitted change; the app's prices for ``target``
+    itself where given. A player with no price on record by ``target`` (a
+    signing first priced later) is ``price_unknown`` at the placeholder
+    price: a later price never stands in for an earlier one."""
 
     lists = data.price_lists(season)
     for r, prices in (known or {}).items():
@@ -606,11 +673,12 @@ def estimate_prices(players, coaches, target, data, season, rules, games, privat
     for x in players + coaches:
         if _pkey(x) in given:
             continue
-        base, price = x.get("price_round") or 1, x["price"]  # opening (or first known) price
-        for r in sorted(lists):
-            if r <= target and _pkey(x) in lists[r]:
-                base, price = r, lists[r][_pkey(x)]
-        start[id(x)] = (base, price)
+        valid = [o for o in price_record(x, lists) if o[0] <= target]
+        if valid:
+            start[id(x)] = valid[-1]
+            x.pop("price_unknown", None)
+        else:
+            x.update(price=UNKNOWN_PRICE, price_estimated=None, price_unknown=True)
     rounds = range(min((b for b, _ in start.values()), default=target), target)
     boxes = data.boxes(rounds) if rounds else {}
     margin = {}
@@ -621,10 +689,13 @@ def estimate_prices(players, coaches, target, data, season, rules, games, privat
             margin[(g["round"], g["road"]["club"]["code"])] = -d
     for x in players + coaches:
         k = _pkey(x)
-        if k in given:
+        if k in given:  # the app's price: it supersedes an unknown one
             x["price_estimated"] = None
             x["price"] = given[k]
+            x.pop("price_unknown", None)
             continue
+        if id(x) not in start:
+            continue  # no price on record yet
         base, price = start[id(x)]
         for rnd in range(base, target):
             if x in coaches:
@@ -636,7 +707,8 @@ def estimate_prices(players, coaches, target, data, season, rules, games, privat
                 played = bool(ln and ln["minutes"] > 0)
                 score = (ln["pir"] or 0.0) if played else 0.0
                 if rules.price_basis == "fantasy":
-                    score = float(fantasy_score(score, margin.get((rnd, x["club"]), 0) > 0, rules))
+                    club = (ln.get("team_code") if played else None) or x["club"]  # his club then
+                    score = float(fantasy_score(score, margin.get((rnd, club), 0) > 0, rules))
                 change = float(price_change(score, price, rules, played=played))
                 price = round(price + change, 1)
         x["price_estimated"] = x["price"] = price
@@ -702,8 +774,11 @@ class SeasonModel:
         return self._rounds[n]
 
     def players_before(self, target: int):
-        """Prior updated on every round before ``target``."""
-        players, coaches, fit_info = build_players(self.data, self.season)
+        """Prior updated on every round before ``target``, as known then: each
+        player at his club on the round's first day, priced only from what
+        was on record by then."""
+        day = round_dates(self.games).get(target)
+        players, coaches, fit_info = build_players(self.data, self.season, day, target)
         evidence = list(range(1, target))
         if evidence:
             update_with_evidence(
@@ -752,7 +827,9 @@ class SeasonModel:
         rows = []
         for p in players:
             r = proj.get(id(p))
-            if not r or not p.get("code") or r["play"] < 0.5:
+            # Without a price on record by then he could not have been bought:
+            # he stays out of the rows the price fits and calibration learn from.
+            if not r or not p.get("code") or r["play"] < 0.5 or p.get("price_unknown"):
                 continue
             rows.append({"name": p["name"], "club": p["club"], "pos": p["pos"], "group": prior_group(p),
                          "price": p["price"], "ev": r["ev"], "min_p": r["min"], "play": r["play"],
@@ -833,6 +910,7 @@ class SeasonModel:
             else (0, 0)
         )
         rounds = [target + i for i in range(self.season.horizon)]
+        owned = set(private.squad) if private and private.squad else set()
         for x in players + coaches:
             x["proj"] = {}
         ratings = {}
@@ -844,6 +922,8 @@ class SeasonModel:
             for p in players:
                 r = proj.get(id(p))
                 if not r:
+                    if p["name"] in owned:  # released (or not registered yet): still sellable
+                        p["proj"][str(rnd)] = unregistered_entry(p, proj, players, days)
                     continue
                 raw = r["ev"]
                 ratio = points_ratio(p["club"], r["opp"], r["home"], r["margin"],
@@ -873,6 +953,17 @@ class SeasonModel:
                     c["proj"][str(rnd)] = {"ev": coach_ev(m), "margin": m}
         return {"round": target, "rounds": rounds, "players": players, "coaches": coaches,
                 "ratings": ratings, "calibration": cal}  # fmt: skip
+
+
+def unregistered_entry(p: dict, proj: dict, players: list[dict], days: list[str]) -> dict:
+    """A round with no projection for an owned player off the roster: zero
+    points, his (last) club's fixture, so the planner can still sell him."""
+    mate = next((proj[id(q)] for q in players if q["club"] == p["club"] and id(q) in proj), None)
+    if mate is None:  # his club has no game: any fixture will do, he scores nothing
+        mate = next(iter(proj.values()))
+    return {**mate, "ev": 0.0, "if_plays": 0.0, "play": 0.0, "min": 0.0, "raw_ev": 0.0,
+            "model_ev": 0.0, "price_ev": 0.0, "position_fix": 0.0,
+            "turn": days.index(mate["date"][:10]), "unregistered": True}  # fmt: skip
 
 
 def save_projection(result: dict, path: Path) -> None:
