@@ -793,3 +793,78 @@ def test_owned_released_and_newly_priced_players_reach_the_planner(tmp_path, rul
     assert {"DDD F ex", "Signed Unpriced"} <= {p.player_id for p in planner.lp}
     plan = planner.search(n_search=300, n_final=600, seeds=(1, 2)).plan
     assert "DDD F ex" not in plan.bought
+
+
+# ---------------------------------------------------------------- tipster picks
+def test_tipster_picks_are_matched_to_our_players():
+    from elfantasy.season.tips import club_code, match_pick
+
+    clubs = load_season(SEASON).clubs
+    assert [club_code(c, clubs) for c in ("Asvel", "Virtus", "Bayern", "Valencia")] == [
+        "ASV", "VIR", "MUN", "PAM",
+    ]  # fmt: skip
+    people = [{"name": "TJ Shorts", "club": "PAM"}, {"name": "Azuolas Tubelis", "club": "ZAL"},
+              {"name": "Tyson Carter", "club": "RED"}]  # fmt: skip
+    assert (
+        match_pick({"player": "T.J. Shorts", "club": "Valencia"}, people, clubs)["name"]
+        == "TJ Shorts"
+    )
+    # a misspelling is accepted only at the same club
+    assert match_pick({"player": "Azoulas Tubelis", "club": "Zalgiris"}, people, clubs)
+    assert match_pick({"player": "Azoulas Tubelis", "club": "Partizan"}, people, clubs) is None
+    assert match_pick({"player": "Nobody Here", "club": "Zalgiris"}, people, clubs) is None
+
+
+def test_a_pick_is_timed_against_the_first_tip_off():
+    from elfantasy.season.tips import round_tips
+
+    def row(player, captured, modified):
+        return {"round": 7, "player": player, "captured_at": captured, "modified": modified}
+
+    rows = [row("Early", "2026-10-20T10:00:00+00:00", "2026-10-20T09:00:00+00:00"),
+            row("Late", "2026-10-22T10:00:00+00:00", "2026-10-22T08:00:00+00:00")]  # fmt: skip
+    tipoff = "2026-10-21T17:00:00Z"
+    (before,) = round_tips(rows, 7, tipoff)
+    assert before["player"] == "Early" and before["timing"] == "observed"  # archived then
+    assert [p["player"] for p in round_tips(rows, 7)] == ["Late"]  # the card: the latest
+    # Archived only after the round: the publisher's edit time is all we have.
+    later = [row("A", "2026-11-18T10:00:00+00:00", "2026-10-21T09:01:00+00:00")]
+    assert round_tips(later, 7, tipoff)[0]["timing"] == "dated"
+    edited = [row("A", "2026-11-18T10:00:00+00:00", "2026-10-24T15:24:00+00:00")]
+    assert round_tips(edited, 7, tipoff)[0]["timing"] == "late"
+    undated = [row("A", "2026-11-18T10:00:00+00:00", None)]
+    assert round_tips(undated, 7, tipoff)[0]["timing"] == "late"
+
+
+def test_the_card_flags_picks_we_rank_low():
+    from elfantasy.season.tips import LOW_RANK, card_rows
+
+    clubs = load_season(SEASON).clubs
+    names = [f"Guard {a}{b}" for a in "bcdfg" for b in "aeiou"][: LOW_RANK + 5]  # Guard ba, be...
+    guards = [{"name": n, "club": "MAD", "pos": "G", "proj": {"13": {"ev": 30.0 - i}}}
+              for i, n in enumerate(names)]  # fmt: skip
+    guards.append({"name": "Hurt Guy", "club": "MAD", "pos": "G", "proj": {}})
+    coaches = [{"name": "Coach Zed", "club": "PAN", "proj": {"13": {"ev": 10.0}}}]
+    result = {"round": 13, "players": guards, "coaches": coaches}
+
+    def pick(player, pos="G", club="Real Madrid"):
+        return {"pos": pos, "player": player, "club": club, "price": 9.0}
+
+    rows = card_rows(result, [pick(names[0]), pick(names[LOW_RANK + 2]), pick("Hurt Guy"),
+                              pick("Not There"), pick("Coach Zed", "HC", "Panathinaikos")], clubs)  # fmt: skip
+    assert [(r["rank"], r["note"][:12]) for r in rows] == [
+        (1, ""), (LOW_RANK + 3, "we rank him "), (None, "no forecast "), (None, "not in our p"),
+        (1, ""),
+    ]  # fmt: skip
+
+
+def test_tipster_bump_and_recent_form_are_shrunk():
+    from elfantasy.season.backtest import peer_excess, recent_form, tipster_bump
+
+    rows = [{"round": 1, "name": n, "pos": "G", "price": p, "actual": a, "forecast": 6.0}
+            for n, p, a in (("A", 5.0, 10.0), ("B", 5.5, 7.0), ("C", 6.0, 5.0))]  # fmt: skip
+    ((x, excess),) = peer_excess(rows, {(1, "A")})
+    # A beat his forecast by 4; his unpicked peers by +1 and -1 (mean 0)
+    assert x["name"] == "A" and excess == pytest.approx(4.0)
+    assert tipster_bump(rows, {(1, "A")}, prior_picks=3) == pytest.approx(4.0 / 4)
+    assert recent_form({1: rows}, 2, rounds=3, prior_games=1)["A"] == pytest.approx(4.0 / 2)

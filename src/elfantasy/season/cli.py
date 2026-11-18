@@ -124,6 +124,45 @@ def _day(iso: str) -> str:
     return date.fromisoformat(iso[:10]).strftime("%a")
 
 
+def _print_tips(data: SeasonData, clubs: dict[str, str], result: dict) -> None:
+    """Basketball Sphere's picks for the round against our forecast; the ones
+    we rank low first (a reason to check the news before locking the team)."""
+    from elfantasy.season.archive import Archive
+    from elfantasy.season.tips import LOW_RANK, card_rows, round_tips
+
+    round_no = int(result["round"])
+    picks = round_tips(Archive(data.root / "archive").read("tips"), round_no)
+    if not picks:
+        report.console.print(
+            f"[dim]No tipster picks archived for round {round_no} yet: "
+            "`elfantasy season archive --only tips`[/]"
+        )
+        return
+    rows = card_rows(result, picks, clubs)
+    table = Table(
+        title=f"Round {round_no}: Basketball Sphere's picks against our forecast "
+        f"(captured {picks[0]['captured_at'][:16].replace('T', ' ')} UTC)",
+        header_style="bold",
+    )
+    for col in ("P", "Player", "Club", "Price", f"Our R{round_no}", "Our rank", "Note"):
+        table.add_column(
+            col, justify="right" if col in ("Price", f"Our R{round_no}", "Our rank") else "left"
+        )
+    order = {"G": 0, "F": 1, "C": 2, "HC": 3}
+    for r in sorted(rows, key=lambda r: (not r["note"], order.get(r["pos"], 4), r["rank"] or 99)):
+        table.add_row(
+            r["pos"], r["player"], r["club"], f"{r['price']:.1f}" if r["price"] else "-",
+            f"{r['ev']:.1f}" if r["ev"] is not None else "-",
+            str(r["rank"]) if r["rank"] else "-", r["note"],
+        )  # fmt: skip
+    report.console.print(table)
+    report.console.print(
+        f"[dim]Our rank is at the position (coaches among coaches); a pick outside our top "
+        f"{LOW_RANK} is flagged. In the backtest their picks beat our forecasts; whether to add a "
+        "bump is a candidate there (`elfantasy season backtest`).[/]"
+    )
+
+
 @app.command()
 def project(
     round_no: int = RoundOpt,
@@ -176,6 +215,7 @@ def project(
                         *[f"{c['proj'][str(r)]['ev']:.1f}" if str(r) in c["proj"] else "-"
                           for r in result["rounds"]])  # fmt: skip
     report.console.print(coaches)
+    _print_tips(data, season.clubs, result)
     report.console.print(f"[dim]saved {out}[/]")
 
 
@@ -199,7 +239,7 @@ def _planner(round_no, season_dir, config):
                            credit_per_round=season.credit_per_round,
                            credit_weight=season.credit_weight, last_round=season.last_round,
                            log=lambda m: report.console.print(f"[dim]{m}[/]"))  # fmt: skip
-    return planner, data, private
+    return planner, data, private, season
 
 
 @app.command()
@@ -213,12 +253,13 @@ def plan(
 ) -> None:
     """Transfers, lineup and Turn plan, from your squad in the private file."""
 
-    planner, data, _ = _planner(round_no, season_dir, config)
+    planner, data, _, season = _planner(round_no, season_dir, config)
     try:
         result = planner.search(n_search=2000 if quick else 6000, n_final=10000 if quick else 40000)
     except ValueError as exc:
         _fail(exc)
     planner.show(result)
+    _print_tips(data, season.clubs, planner.proj)
     out = data.out_dir / f"plan_round_{round_no:02d}.json"
     planner.save(result, out)
     report.console.print(f"[dim]saved {out}[/]")
@@ -232,7 +273,7 @@ def compare(
 ) -> None:
     """The `plans:` in the private file (and holding), head to head on the same simulations."""
 
-    planner, _, private = _planner(round_no, season_dir, config)
+    planner, _, private, _ = _planner(round_no, season_dir, config)
     if private is None or not private.plans:
         _fail(SeasonInputError("add `plans:` to the private file to compare them"))
     try:
@@ -319,13 +360,51 @@ def backtest(
             f"{mean(lambda s: s.blend.rmse):.3f} -> {mean(lambda s: s.opp_adjusted.rmse):.3f}, rho "
             f"{mean(lambda s: s.blend.rho):.3f} -> {mean(lambda s: s.opp_adjusted.rho):.3f}"
         )
+
+    def line(e):
+        return f"{np.mean(e):+.2f} (n={len(e)}, se {np.std(e) / np.sqrt(len(e)):.2f})"
+
+    tips = [s for s in scores if s.tipster and s.tipster_dated and s.form and s.form_tipster]
+    if tips:
+
+        def avg(f):
+            return float(np.mean([f(s) for s in tips]))
+
+        span = f"rounds {tips[0].round}-{tips[-1].round}"
+        for label, get in (
+            ("Tipster bump, all articles (exploratory: most edited after the games)", lambda s: s.tipster),
+            ("Tipster bump, dated picks only (known before tip-off)", lambda s: s.tipster_dated),
+            ("Recent form", lambda s: s.form),
+            ("Form + tipster (all articles)", lambda s: s.form_tipster),
+        ):  # fmt: skip
+            report.console.print(
+                f"{label} candidate, {span}: top-{top} {avg(lambda s: s.blend.top):.2f} -> "
+                f"{avg(lambda s, g=get: g(s).top):.2f}, RMSE {avg(lambda s: s.blend.rmse):.3f} -> "
+                f"{avg(lambda s, g=get: g(s).rmse):.3f}, rho {avg(lambda s: s.blend.rho):.3f} -> "
+                f"{avg(lambda s, g=get: g(s).rho):.3f}"
+            )
+
+    def clustered(attr):
+        """Mean over picks, with the round-clustered standard error."""
+        per = [getattr(s, attr) for s in scores if getattr(s, attr)]
+        if not per:
+            return "none yet"
+        means = [float(np.mean(e)) for e in per]
+        se = float(np.std(means, ddof=1) / np.sqrt(len(means))) if len(means) > 1 else float("nan")
+        n = sum(len(e) for e in per)
+        return f"{np.mean([x for e in per for x in e]):+.2f} ({n} picks, {len(per)} rounds, se {se:.2f})"
+
+    if any(s.tip_excess for s in scores):
+        report.console.print(
+            "Tipster picks, actual - forecast beyond unpicked peers: "
+            f"all {clustered('tip_excess')}; dated before tip-off by the publisher "
+            f"{clustered('tip_excess_dated')}; archived by us before tip-off "
+            f"{clustered('tip_excess_observed')}; all, after recent form "
+            f"{clustered('tip_excess_after_form')}"
+        )
     short = [e for s in scores for e in s.short_rest]
     normal = [e for s in scores for e in s.normal_rest]
     if short and normal:
-
-        def line(e):
-            return f"{np.mean(e):+.2f} (n={len(e)}, se {np.std(e) / np.sqrt(len(e)):.2f})"
-
         report.console.print(
             f"Projected starters, actual - forecast: on {SHORT_REST_DAYS} days' rest or less "
             f"{line(short)}; with more rest {line(normal)}"
@@ -337,7 +416,9 @@ def backtest(
 @app.command()
 def archive(
     only: list[str] = typer.Option(
-        None, "--only", help="Collect only these: odds, domestic, news, prices, pbp (repeatable)."
+        None,
+        "--only",
+        help="Collect only these: odds, domestic, news, prices, tips, pbp (repeatable).",
     ),
     lines: int = typer.Option(
         None, "--lines", help="Afterwards print this round's lines and totals for its round file."

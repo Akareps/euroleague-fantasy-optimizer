@@ -120,6 +120,12 @@ def test_storage(tmp_path):
     assert store.read("t")[0]["captured_at"].startswith("2026-11-17T00:00:00")
 
 
+def _http_error(status):
+    response = requests.Response()
+    response.status_code = status
+    return requests.HTTPError(f"{status}", response=response)
+
+
 class _Fetch:
     def __init__(self, pages):
         self.pages = pages
@@ -130,7 +136,7 @@ class _Fetch:
                 if isinstance(body, Exception):
                     raise body
                 return body
-        raise requests.HTTPError("404")
+        raise _http_error(404)
 
 
 def test_collectors_fail_alone_and_lines_come_back(tmp_path):
@@ -178,3 +184,109 @@ def test_fetcher_retries_a_dropped_connection(monkeypatch):
     monkeypatch.setattr(A.time, "sleep", lambda s: None)
     fetch = A.Fetcher(interval=0, session=Session(), slow={})
     assert fetch.get("https://example.org/x") == "ok" and len(calls) == 2
+
+
+TIPS = (
+    '<script type="application/ld+json">{"datePublished":"2026-11-15T11:09:07+00:00",'
+    '"dateModified":"2026-11-16T13:56:02+00:00"}</script><article><h2>Guards</h2>'
+    "<p><strong>Best options over 10.0 credits</strong></p>"
+    "<p><strong>Elijah Bryant &#8211; Hapoel Tel Aviv &#8211; 17.6 credits</strong></p>"
+    "<p>Why: <strong>Elijah Bryant</strong> is on fire.</p>"
+    "<p><strong>Best options from 6.0 to 10.0 credits</strong></p>"
+    "<p><strong>Andres Feliz – Real Madrid – 9.7 credits</strong></p>"
+    "<h2>Head coaches</h2><p><strong>Zeljko Obradovic – Panathinaikos – 10.2 credits</strong></p>"
+    "<h2>FAQ</h2><p><strong>Not – a – 5 credits pick</strong></p></article>"
+)
+
+
+def _tips_link(r, season="26-27"):
+    return f"https://basketballsphere.com/en/euroleague-fantasy-{season}-round-{r}-best-picks/"
+
+
+def test_tips_article():
+    published, modified, picks = A.parse_tips(TIPS)
+    assert (published[:10], modified[:10]) == ("2026-11-15", "2026-11-16")
+    assert [(p["pos"], p["player"], p["club"], p["price"]) for p in picks] == [
+        ("G", "Elijah Bryant", "Hapoel Tel Aviv", 17.6),
+        ("G", "Andres Feliz", "Real Madrid", 9.7),
+        ("HC", "Zeljko Obradovic", "Panathinaikos", 10.2),
+    ]
+    assert picks[0]["tier"] == "Best options over 10.0 credits"
+    assert picks[1]["tier"].startswith("Best options from 6.0")
+    assert A.tips_slug("E2026") == "26-27"
+    other = "https://basketballsphere.com/en/euroleague-fantasy-round-9-26-27-best-picks/"
+    page = (f'<a href="{_tips_link(12)}">x</a><a href="{_tips_link(3, "25-26")}">last season</a>'
+            f'<a href="{other}">the other format</a>')  # fmt: skip
+    assert A.tip_articles(page, "E2026") == {12: _tips_link(12), 9: other}
+    assert other in A.tip_addresses(9, "E2026") and _tips_link(9) in A.tip_addresses(9, "E2026")
+
+
+def test_tips_without_prices():
+    """Round 9's article names 'Name – Club' only: a pick when the club is a
+    EuroLeague club, with an unknown price (not a guessed one)."""
+    page = (
+        "<article><h2>Guards</h2><p><strong>Best options over 10.0 credits</strong></p>"
+        "<p><strong>TJ Shorts – Valencia</strong></p><p><strong>TJ Shorts</strong></p>"
+        "<p><strong>EuroLeague Fantasy Preview – The Best Rookies</strong></p>"
+        "<p><strong>Jae Crowder – Asvel</strong></p></article>"
+    )
+    _, _, picks = A.parse_tips(page)
+    assert [(p["player"], p["club"], p["price"]) for p in picks] == [
+        ("TJ Shorts", "Valencia", None), ("Jae Crowder", "Asvel", None),
+    ]  # fmt: skip
+
+
+def test_tips_are_backfilled_once_and_the_open_round_rechecked(tmp_path):
+    calls = []
+
+    class Fetch(_Fetch):
+        def get(self, url, **headers):
+            calls.append(url)
+            return super().get(url, **headers)
+
+    fetch = Fetch({
+        "round-tips/": f'<a href="{_tips_link(1)}"></a><a href="{_tips_link(3)}"></a>',
+        "category/": "", "round-1-best-picks": TIPS, "round-3-best-picks": TIPS,
+    })  # fmt: skip
+    games = {f"g{r}": {"round": r, "played": r < 3} for r in (1, 2, 3)}
+    store = A.Archive(tmp_path)
+    out = A.collect(store, games, "E2026", only=["tips"], fetch=fetch, log=lambda m: None)
+    assert out["tips"].startswith("6 ")  # three picks in each of rounds 1 and 3
+    assert {r["round"] for r in store.read("tips")} == {1, 3}
+    assert store.once_path("basketballsphere_tips", "missing_02").is_file()  # finished, no article
+    calls.clear()
+    A.collect(store, games, "E2026", only=["tips"], fetch=fetch, log=lambda m: None)
+    articles = [u for u in calls if "best-" in u]
+    assert articles[0] == _tips_link(3)  # still open: read again
+    assert not any("round-1-" in u or "round-2-" in u for u in articles)  # settled
+    assert any("round-4-" in u for u in articles)  # the next round's article is looked for
+    # A listing now links round 2's article: the 'missing' marker does not stop it.
+    late = "https://basketballsphere.com/en/euroleague-fantasy-round-2-26-27-best-picks/"
+    fetch.pages["round-tips/"] += f'<a href="{late}"></a>'
+    fetch.pages["round-2-26-27"] = TIPS
+    A.collect(store, games, "E2026", only=["tips"], fetch=fetch, log=lambda m: None)
+    assert 2 in {r["round"] for r in store.read("tips")}
+
+
+def test_a_failed_request_is_not_a_missing_article(tmp_path):
+    fetch = _Fetch({"round-tips/": f'<a href="{_tips_link(1)}"></a>', "category/": "",
+                    "round-1-best-picks": _http_error(503)})  # fmt: skip
+    games = {"g1": {"round": 1, "played": True}, "g2": {"round": 2, "played": False}}
+    store = A.Archive(tmp_path)
+    A.collect(store, games, "E2026", only=["tips"], fetch=fetch, log=lambda m: None)
+    assert not store.once_path("basketballsphere_tips", "missing_01").is_file()
+    fetch.pages["round-1-best-picks"] = TIPS  # the site is back
+    A.collect(store, games, "E2026", only=["tips"], fetch=fetch, log=lambda m: None)
+    assert {r["round"] for r in store.read("tips")} == {1}
+
+
+def test_an_article_without_picks_is_reported_and_retried(tmp_path):
+    fetch = _Fetch({"round-tips/": f'<a href="{_tips_link(1)}"></a>', "category/": "",
+                    "round-1-best-picks": "<article><h2>Guards</h2><p>new layout</p></article>"})  # fmt: skip
+    games = {"g1": {"round": 1, "played": True}}
+    store, said = A.Archive(tmp_path), []
+    A.collect(store, games, "E2026", only=["tips"], fetch=fetch, log=said.append)
+    assert any("no picks found" in m for m in said)
+    fetch.pages["round-1-best-picks"] = TIPS
+    A.collect(store, games, "E2026", only=["tips"], fetch=fetch, log=said.append)
+    assert len(store.read("tips")) == 3

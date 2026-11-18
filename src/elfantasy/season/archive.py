@@ -18,6 +18,11 @@ Tables:
     news           RotoWire's EuroLeague news items
     prices_public  the full fantasy price list published by Basketball Sphere
                    (it can lag the app by a round)
+    tips           Basketball Sphere's 'best picks' per round (names, clubs,
+                   prices and position only), with the article's publication and
+                   edit times. Timing of a pick against the round's first
+                   tip-off: archived before it, dated before it by the
+                   publisher (archived later), or edited after it
 
 Plus EuroLeague play-by-play and shot data per finished game (``once/euroleague``).
 
@@ -59,6 +64,13 @@ LEAGUES = {  # competition -> BetExplorer path
 }
 TRACKER = "https://basketballsphere.com/en/injuries/euroleague/"
 PRICES = "https://basketballsphere.com/en/euroleague-fantasy-player-prices/"
+TIPS_BASE = "https://basketballsphere.com/en/"
+TIPS_LISTINGS = (  # pages linking the round articles: the hub, then the newest posts
+    "euroleague-fantasy-round-tips/",
+    "category/euroleague-fantasy/",
+    "category/euroleague-fantasy/page/2/",
+)
+TIPS_POSITIONS = {"guards": "G", "forwards": "F", "centers": "C", "head coaches": "HC"}
 ROTOWIRE = "https://www.rotowire.com/euro/news.php"
 LIVE_API = "https://live.euroleague.net/api"
 TOTAL_SD = 16.0  # points: spread of a game's total around the market line
@@ -346,6 +358,72 @@ def parse_prices(page: str) -> list[dict]:
             for pos, club, price, name in rows]  # fmt: skip
 
 
+def tips_slug(season: str) -> str:
+    """'E2026' -> '26-27', as in the round articles' addresses."""
+    year = int(season[-4:])
+    return f"{year % 100:02d}-{(year + 1) % 100:02d}"
+
+
+def tip_articles(page: str, season: str) -> dict[int, str]:
+    """round -> address of each 'best picks' round article a page links to
+    (both of the site's formats: '...-26-27-round-12-...' and '...-round-9-26-27-...')."""
+    base, slug = re.escape(TIPS_BASE), re.escape(tips_slug(season))
+    out: dict[int, str] = {}
+    for pattern in (rf"{base}euroleague-fantasy-{slug}-round-(\d+)-best-[a-z]+/",
+                    rf"{base}euroleague-fantasy-round-(\d+)-{slug}-best-[a-z]+/"):  # fmt: skip
+        for m in re.finditer(pattern, page):
+            out.setdefault(int(m.group(1)), m.group(0))
+    return out
+
+
+def tip_addresses(round_no: int, season: str) -> list[str]:
+    """Where a round article usually is, for a round no listing links."""
+    slug = tips_slug(season)
+    return [
+        f"{TIPS_BASE}euroleague-fantasy-{stem}-best-{kind}/"
+        for stem in (f"{slug}-round-{round_no}", f"round-{round_no}-{slug}")
+        for kind in ("picks", "tips")
+    ]
+
+
+_TIP_CLUBS = {c.lower() for c in TRACKER_CLUBS} | set(EL_CODES)
+
+
+def _is_club(text: str) -> bool:
+    low = text.lower().strip()
+    return any(low == c or low.startswith(c) or c.startswith(low) for c in _TIP_CLUBS)
+
+
+def parse_tips(page: str) -> tuple[str | None, str | None, list[dict]]:
+    """A Basketball Sphere round article: (published, modified, picks), each pick
+    {pos, tier, player, club, price} from its 'Name – Club – 9.7 credits' lines
+    under the Guards / Forwards / Centers / Head coaches headings. Some articles
+    leave the price out ('Name – Club'): such a line counts when it names a
+    EuroLeague club, and its price is None (unknown, not guessed)."""
+    published = re.search(r'"datePublished"\s*:\s*"([^"]+)"', page)
+    modified = re.search(r'"dateModified"\s*:\s*"([^"]+)"', page)
+    start = page.find("<article")
+    body = page[start : page.find("</article>", start)] if start >= 0 else page
+    parts = re.split(r"<h[2-4][^>]*>(.*?)</h[2-4]>", body, flags=re.S)
+    picks = []
+    for i in range(1, len(parts) - 1, 2):
+        head = _text(parts[i]).lower()
+        pos = next((v for k, v in TIPS_POSITIONS.items() if head.startswith(k)), None)
+        if pos is None:
+            continue
+        tier = None
+        for strong in re.findall(r"<strong>(.*?)</strong>", parts[i + 1], re.S):
+            line = re.sub(r"\s+", " ", _text(strong))
+            m = re.fullmatch(r"(.+?)\s+[–—-]\s+(.+?)(?:\s+[–—-]\s+([\d.]+)\s+credits)?", line)
+            if m and (m.group(3) or _is_club(m.group(2))):
+                picks.append({"pos": pos, "tier": tier, "player": m.group(1).strip(),
+                              "club": m.group(2).strip(),
+                              "price": float(m.group(3)) if m.group(3) else None})  # fmt: skip
+            elif "credits" in line.lower():
+                tier = line  # 'Best options over 10.0 credits' and the like
+    return (published and published.group(1), modified and modified.group(1), picks)
+
+
 # ==================================================================== collectors
 def collect_odds(
     archive: Archive, fetch: Fetcher, competitions=None, markets_ahead: int = 2
@@ -429,6 +507,73 @@ def collect_prices(archive: Archive, fetch: Fetcher) -> int:
     return archive.append("prices_public", "basketballsphere", parse_prices(body))
 
 
+def _absent_at(marker: Path) -> set[str]:
+    """The addresses a 'missing' marker found nothing at (an old marker: none)."""
+    if not marker.is_file():
+        return set()
+    try:
+        with gzip.open(marker, "rt", encoding="utf-8") as fh:
+            return set(json.loads(fh.read()))
+    except (ValueError, OSError):
+        return set()
+
+
+def collect_tips(
+    archive: Archive, fetch: Fetcher, games: dict[str, dict], season: str,
+    log: Callable[[str], None] = print,
+) -> int:  # fmt: skip
+    """Basketball Sphere's 'best picks' article of each round: every round not
+    yet archived, and each run again until the round is over (it can change
+    before tip-off). A round no listing links is tried at its usual addresses.
+    A finished round is marked missing only when every address answers 'not
+    found'; a failed request (a 503, a timeout) is tried again next run, and
+    the marker is reconsidered when a new address turns up. An article that
+    yields no picks is reported (its format may have changed) and retried."""
+    done = {r["round"] for r in archive.read("tips")}
+    played: dict[int, list[bool]] = defaultdict(list)
+    for g in games.values():
+        played[int(g["round"])].append(bool(g.get("played")))
+    finished = {r for r, flags in played.items() if all(flags)}
+    upcoming = min((r for r in played if r not in finished), default=max(played, default=0))
+    urls: dict[int, str] = {}
+    for listing in TIPS_LISTINGS:
+        try:
+            urls.update(tip_articles(fetch.get(TIPS_BASE + listing), season))
+        except requests.RequestException:
+            continue
+    n = 0
+    for rnd in range(1, upcoming + 2):  # the round under way and the next one
+        settled = rnd in finished
+        tries = [urls[rnd]] if rnd in urls else tip_addresses(rnd, season)
+        marker = archive.once_path("basketballsphere_tips", f"missing_{rnd:02d}")
+        # A link from a listing always counts: the article may have appeared since.
+        if settled and (rnd in done or (rnd not in urls and set(tries) <= _absent_at(marker))):
+            continue  # archived, or not found at every usual address
+        absent = []
+        for url in tries:
+            try:
+                body = fetch.get(url)
+            except requests.HTTPError as exc:
+                if exc.response is not None and exc.response.status_code in (404, 410):
+                    absent.append(url)
+                continue
+            except requests.RequestException:
+                continue  # failed, not absent: the next run tries again
+            archive.raw("basketballsphere", f"tips_round_{rnd:02d}", body)
+            published, modified, picks = parse_tips(body)
+            if not picks:
+                log(f"tips: no picks found in {url}: has the article's format changed?")
+            n += archive.append("tips", "basketballsphere", [
+                {"round": rnd, "url": url, "published": published, "modified": modified, **p}
+                for p in picks
+            ])  # fmt: skip
+            break
+        else:
+            if settled and absent == tries:
+                archive.once("basketballsphere_tips", f"missing_{rnd:02d}", json.dumps(absent))
+    return n
+
+
 def collect_play_by_play(
     archive: Archive, fetch: Fetcher, games: dict[str, dict], season: str
 ) -> int:
@@ -470,7 +615,7 @@ def round_lines(archive: Archive, round_no: int) -> tuple[dict, dict]:
     return lines, totals
 
 
-COLLECTORS = ("odds", "domestic", "news", "prices", "pbp")
+COLLECTORS = ("odds", "domestic", "news", "prices", "tips", "pbp")
 
 
 def collect(archive: Archive, games: dict[str, dict], season: str, only=None,
@@ -484,6 +629,7 @@ def collect(archive: Archive, games: dict[str, dict], season: str, only=None,
         ),
         "news": lambda: collect_news(archive, fetch),
         "prices": lambda: collect_prices(archive, fetch),
+        "tips": lambda: collect_tips(archive, fetch, games, season, log=log),
         "pbp": lambda: collect_play_by_play(archive, fetch, games, season),
     }
     out = {}

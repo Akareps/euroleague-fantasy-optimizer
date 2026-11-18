@@ -293,9 +293,21 @@ Parsed rows go into JSON-lines tables:
 - **injuries:** the injury tracker.
 - **news:** RotoWire items.
 - **prices_public:** the public fantasy price list.
+- **tips:** Basketball Sphere's "best picks" for each round (names, clubs and
+  prices only), re-read until the round is over.
 
 It also saves the EuroLeague play-by-play and shot data of every finished game,
 and a dated copy of every projection run.
+
+`season project` and `season plan` end with those picks set against our
+forecast, flagging any we rank outside the top 15 at the position: a prompt to
+check the news before locking the team. `season backtest` scores a bump for
+their picks, recent form, and the two together as candidates. Each pick is
+timed against the round's first tip-off: archived by us before it, dated before
+it by the publisher (archived later), or edited after it. The bump is scored on
+every pick (exploratory only) and on picks known before tip-off; verified
+pre-deadline copies start with Round 13. No bump feeds the projections or the
+planner.
 
 Its model starts from a preseason prior (last season, opening prices, named
 role evidence), updates on every game played, and calibrates against
